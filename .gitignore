@@ -1,0 +1,5 @@
+.cmake/
+.nv/
+build/
+
+.bash_history
