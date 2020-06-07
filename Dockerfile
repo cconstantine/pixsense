@@ -22,17 +22,20 @@ RUN git clone --branch v1.6.0 --depth 1 https://github.com/CMU-Perceptual-Comput
 WORKDIR /openpose/build
 RUN cmake -DBUILD_PYTHON=ON .. && make -j `nproc`
 RUN make install
-WORKDIR /openpose
+RUN mkdir -p /usr/share/openpose
+RUN mv /openpose/models /usr/share/openpose/
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xorg-dev libglu1-mesa-dev libusb-1.0-0-dev
 WORKDIR /librealsense
 RUN git clone --branch v2.32.1 --depth 1 --recursive --shallow-submodules https://github.com/IntelRealSense/librealsense.git .
 WORKDIR /librealsense/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_WITH_TM2=OFF .. && make -j `nproc` && make install
-WORKDIR /librealsense
 
-RUN mkdir /app
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libglm-dev
+
+WORKDIR /app
 ENV HOME="/app"
+# RUN rm -rf /openpose /librealsense
 
 #This user schenanigans allows for local development
 ARG USER=pixsense

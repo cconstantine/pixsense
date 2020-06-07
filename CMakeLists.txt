@@ -11,6 +11,6 @@ find_package( Threads REQUIRED )
 
 find_package( GFlags REQUIRED )
 
-
-add_executable(tracking tracking.cpp)
+include_directories("include/")
+add_executable(tracking tracking.cpp face_finder.cpp)
 target_link_libraries(tracking realsense2 ${GFLAGS_LIBRARIES} ${OpenPose_LIBS} ${CMAKE_THREAD_LIBS_INIT})
