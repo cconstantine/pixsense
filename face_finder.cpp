@@ -121,12 +121,16 @@ namespace Pixsense {
       if (started ) {
         unaligned_frames = pipe->wait_for_frames();
         rs2::frameset aligned_frames = align.process(unaligned_frames);
-        rs2::video_frame images = aligned_frames.get_color_frame();
-        rs2::depth_frame depths = aligned_frames.get_depth_frame();
-        cv::Mat image_matrix = RealsenseTracker::frame_to_mat(images);
+        // rs2::video_frame images = aligned_frames.get_color_frame();
+        rs2::depth_frame depths = unaligned_frames.get_depth_frame();
+        rs2::video_frame ir_frame = unaligned_frames.get_infrared_frame(1);
+        // cv::Mat image_matrix = RealsenseTracker::frame_to_mat(images);
         cv::Mat depth_matrix = RealsenseTracker::frame_to_mat(depths);
+        cv::Mat greys_matrix = RealsenseTracker::frame_to_mat(ir_frame);
 
-        tracked_face = face_detect.detect(image_matrix, depth_matrix);
+        cv::Mat frame;
+        cvtColor(greys_matrix, frame, cv::COLOR_GRAY2BGR);
+        tracked_face = face_detect.detect(frame, depth_matrix);
         if(!tracked_face.is_tracking()) {
           return;
         }
@@ -164,7 +168,7 @@ namespace Pixsense {
       rs2::config config;
       config.enable_stream(RS2_STREAM_DEPTH, 1280, 720,  RS2_FORMAT_Z16, 30);
       config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
-      // config.enable_stream(RS2_STREAM_INFRARED, 2, width, height, RS2_FORMAT_Y8, fps);
+      config.enable_stream(RS2_STREAM_INFRARED, 1, 1280, 720, RS2_FORMAT_Y8, 30);
 
       // config.enable_stream(RS2_STREAM_INFRARED, 2);
       // config.enable_stream(RS2_STREAM_DEPTH, 1);
@@ -178,7 +182,7 @@ namespace Pixsense {
       auto depth_sensor = selected_device.first<rs2::depth_sensor>();
       if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED))
       {
-          depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 1.f); // Enable emitter
+          depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0.f); // Enable emitter
       }
 
       started = true;

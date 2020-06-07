@@ -202,7 +202,6 @@ int openPoseDemo()
 
 int main(int argc, char *argv[])
 {
-    FLAGS_net_resolution = "-1x16";
     // Parsing command line flags
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
