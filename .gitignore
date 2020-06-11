@@ -3,3 +3,5 @@
 build/
 
 .bash_history
+.cache
+.local

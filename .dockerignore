@@ -1,1 +1,6 @@
 .nv
+build/
+.cmake
+.cache
+.local
+.git

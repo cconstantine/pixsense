@@ -73,7 +73,7 @@ void configureWrapper(op::Wrapper& opWrapper)
             poseMode, netInputSize, outputSize, keypointScaleMode, FLAGS_num_gpu, FLAGS_num_gpu_start,
             FLAGS_scale_number, (float)FLAGS_scale_gap, op::flagsToRenderMode(FLAGS_render_pose, multipleView),
             poseModel, !FLAGS_disable_blending, (float)FLAGS_alpha_pose, (float)FLAGS_alpha_heatmap,
-            FLAGS_part_to_show, op::String("/usr/share/openpose/models/"), heatMapTypes, heatMapScaleMode, FLAGS_part_candidates,
+            FLAGS_part_to_show, op::String("/openpose/models/"), heatMapTypes, heatMapScaleMode, FLAGS_part_candidates,
             (float)FLAGS_render_threshold, FLAGS_number_people_max, FLAGS_maximize_positives, FLAGS_fps_max,
             op::String(FLAGS_prototxt_path), op::String(FLAGS_caffemodel_path),
             (float)FLAGS_upsampling_ratio, enableGoogleLogging};
@@ -128,7 +128,9 @@ void configureWrapper(op::Wrapper& opWrapper)
 
 class EyeTracker : public Pixsense::AbstractFaceTracker {
 public:
-  EyeTracker()
+  bool should_exit;
+
+  EyeTracker() : should_exit(false)
   {
     configureWrapper(opWrapper);
     opWrapper.start();
@@ -138,7 +140,7 @@ public:
   {
     if(!opWrapper.isRunning()) {
       opWrapper.stop();
-      exit(0);
+      should_exit = true;
     }
     Pixsense::TrackedFace tf;
     op::opLog("******************** detect ********************", op::Priority::High);
@@ -192,7 +194,7 @@ int openPoseDemo()
   op::opLog("Configuring OpenPose...", op::Priority::High);
   EyeTracker tracker;
 
-  while(true) {
+  while(!tracker.should_exit) {
     rt.tick(tracker, target);
   }
 

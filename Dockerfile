@@ -17,13 +17,12 @@ RUN cd cmake-3.17.3 && ./configure && make -j $(nproc) && make install
 #get openpose
 WORKDIR /openpose
 RUN git clone --branch v1.6.0 --depth 1 https://github.com/CMU-Perceptual-Computing-Lab/openpose.git .
+COPY models /openpose/models
 
 #build it
 WORKDIR /openpose/build
-RUN cmake -DBUILD_PYTHON=ON .. && make -j `nproc`
+RUN cmake -DBUILD_PYTHON=OFF .. && make -j `nproc`
 RUN make install
-RUN mkdir -p /usr/share/openpose
-RUN mv /openpose/models /usr/share/openpose/
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xorg-dev libglu1-mesa-dev libusb-1.0-0-dev
 WORKDIR /librealsense
