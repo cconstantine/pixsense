@@ -24,17 +24,31 @@ WORKDIR /openpose/build
 RUN cmake -DBUILD_PYTHON=OFF .. && make -j `nproc`
 RUN make install
 
+# librealsense
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xorg-dev libglu1-mesa-dev libusb-1.0-0-dev
 WORKDIR /librealsense
 RUN git clone --branch v2.32.1 --depth 1 --recursive --shallow-submodules https://github.com/IntelRealSense/librealsense.git .
 WORKDIR /librealsense/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_WITH_TM2=OFF .. && make -j `nproc` && make install
 
+
+# grpc
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential autoconf libtool pkg-config libprotobuf-dev libprotoc-dev
+WORKDIR /grpc
+RUN git clone --branch v1.28.1 --depth 1 --recursive --shallow-submodules https://github.com/grpc/grpc.git .
+WORKDIR /grpc/cmake/build
+RUN cmake -DgRPC_INSTALL=ON \
+      -DgRPC_BUILD_TESTS=OFF \
+      -DCMAKE_INSTALL_PREFIX=$MY_INSTALL_DIR \
+      ../..
+RUN make -j $(nproc)
+RUN make install
+
+############ Start Pixsense
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libglm-dev
 
 WORKDIR /app
 ENV HOME="/app"
-# RUN rm -rf /openpose /librealsense
 
 #This user schenanigans allows for local development
 ARG USER=pixsense

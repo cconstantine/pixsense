@@ -1,3 +1,5 @@
+#pragma once
+
 #include <librealsense2/rs.hpp>
 #include <memory>
 #include <glm/glm.hpp>
