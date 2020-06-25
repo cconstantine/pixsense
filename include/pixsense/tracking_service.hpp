@@ -1,6 +1,6 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
+#include <grpc++/grpc++.h>
 #include "pixrpc.grpc.pb.h"
 
 #include <thread>

@@ -7,7 +7,7 @@
 // If the user wants to learn to use the OpenPose C++ library, we highly recommend to start with the examples in
 // `examples/tutorial_api_cpp/`.
 
-// #include <pixsense/tracking_service.hpp>
+#include <pixsense/tracking_service.hpp>
 #include <pixsense/face_finder.hpp>
 #include <pixsense/eye_tracker.hpp>
 
@@ -19,18 +19,18 @@ int main(int argc, char *argv[])
   // Parsing command line flags
   gflags::ParseCommandLineFlags(&argc, &argv, false);
 
-  // std::string server_address("0.0.0.0:50051");
+  // std::string server_address("0.0.0.0:5000");
   // Pixsense::TrackingServiceImpl service;
   // grpc::ServerBuilder builder;
   // // Listen on the given address without any authentication mechanism.
   // builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+  // // fprintf(stderr ,"%d\n", i);
   // // Register "service" as the instance through which we'll communicate with
   // // clients. In this case it corresponds to an *synchronous* service.
   // builder.RegisterService(&service);
-  // // Finally assemble the server.
+  // // // Finally assemble the server.
   // std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
   // std::cout << "Server listening on " << server_address << std::endl;
-
 
   Pixsense::RealsenseTracker rt;
   glm::vec3 target;
@@ -46,5 +46,6 @@ int main(int argc, char *argv[])
   }
 
   // Return successful message
+  // server->Wait();
   return 0;
 }

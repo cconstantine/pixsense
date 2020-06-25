@@ -1,3 +1,0 @@
-[submodule "pixrpc/ext/grpc"]
-	path = pixrpc/ext/grpc
-	url = https://github.com/grpc/grpc.git
