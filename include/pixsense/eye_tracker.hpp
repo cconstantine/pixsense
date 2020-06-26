@@ -11,8 +11,9 @@ namespace Pixsense {
 
     EyeTracker();
 
-    Pixsense::TrackedFace detect(const cv::Mat& frame, const cv::Mat& depth_frame);
+    virtual bool detect(const rs2::frameset & frame, cv::Rect& detection);
 
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
+
   };
 }

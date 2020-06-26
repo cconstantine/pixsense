@@ -11,7 +11,6 @@ namespace Pixsense
   class TrackedFace {
   public:
     TrackedFace();
-    TrackedFace(const TrackedFace& copy);
 
     void tracking(cv::Rect face);
     void not_tracking();
@@ -22,7 +21,6 @@ namespace Pixsense
     cv::Rect face;
 
   private:
-    bool is_copy;
     bool was_tracking;
     bool has_face;
     std::chrono::time_point<std::chrono::high_resolution_clock> had_face_at;
@@ -31,17 +29,19 @@ namespace Pixsense
 
   class AbstractFaceTracker {
   public:
-    virtual TrackedFace detect(const cv::Mat& frame, const cv::Mat& depth_frame) = 0;
+    virtual bool detect(const rs2::frameset & frame, cv::Rect& detection) = 0;
+
+  protected:
+    static cv::Mat frame_to_mat(const rs2::frame& f);
   };
 
   class RealsenseTracker
   {
   public:
     RealsenseTracker();
-    void tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location);
+    bool tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location);
 
-    TrackedFace  tracked_face;
-
+    Pixsense::TrackedFace& tracking();
   private:
     void update_pipe();
 
@@ -50,7 +50,7 @@ namespace Pixsense
     rs2::pipeline_profile pipeline_profile;
 
     bool started;
+    TrackedFace  tracked_face;
 
-    static cv::Mat frame_to_mat(const rs2::frame& f);
   };
 }

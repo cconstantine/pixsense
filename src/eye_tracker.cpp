@@ -2,6 +2,7 @@
 #include <openpose/flags.hpp>
 // OpenPose dependencies
 #include <pixsense/eye_tracker.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
 
 namespace Pixsense {
 
@@ -118,13 +119,25 @@ namespace Pixsense {
     opWrapper.start();
   }
 
-  Pixsense::TrackedFace EyeTracker::detect(const cv::Mat& frame, const cv::Mat& depth_frame)
+  bool EyeTracker::detect(const rs2::frameset &unaligned_frames, cv::Rect& detection)
   {
     if(!opWrapper.isRunning()) {
       opWrapper.stop();
       should_exit = true;
+      return false;
     }
-    Pixsense::TrackedFace tf;
+    // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
+    // rs2::frameset aligned_frames = align.process(unaligned_frames);
+    // rs2::video_frame images = aligned_frames.get_color_frame();
+    rs2::depth_frame depths = unaligned_frames.get_depth_frame();
+    rs2::video_frame ir_frame = unaligned_frames.get_infrared_frame(1);
+    // cv::Mat image_matrix = RealsenseTracker::frame_to_mat(images);
+    // cv::Mat depth_matrix = RealsenseTracker::frame_to_mat(depths);
+    cv::Mat greys_matrix = AbstractFaceTracker::frame_to_mat(ir_frame);
+
+    cv::Mat frame;
+    cvtColor(greys_matrix, frame, cv::COLOR_GRAY2BGR);
+
     op::opLog("******************** detect ********************", op::Priority::High);
 
     if(frame.cols > 0 && frame.rows > 0) {
@@ -136,16 +149,27 @@ namespace Pixsense {
       std::chrono::duration<float> time_duration = end_time - start_time;
       fprintf(stderr, "%05.5fms\n", time_duration.count() * 1000);
 
-      if (datumProcessed != nullptr && !datumProcessed->empty() && datumProcessed->at(0)->poseKeypoints.getSize(0) > 1)
+      if (datumProcessed != nullptr && !datumProcessed->empty() && datumProcessed->at(0)->poseKeypoints.getSize(0) > 0)
       {
-        fprintf(stderr, "poseIds:       %s\n", datumProcessed->at(0)->poseIds.toString().c_str());
-        fprintf(stderr, "poseKeypoints: %s\n", datumProcessed->at(0)->poseKeypoints.toString().c_str());
-        fprintf(stderr, "poseScores:    %s\n", datumProcessed->at(0)->poseScores.toString().c_str());
-//        op::opLog("Body keypoints: " + datumProcessed->at(0)->poseKeypoints.getSize(0), op::Priority::High);
+        std::shared_ptr<op::Datum> match = datumProcessed->at(0);
+
+        float confidence = match->poseKeypoints[15*3 + 2] * match->poseKeypoints[16*3 + 2] * match->poseKeypoints[0*3 + 2];
+        if (confidence > 0.1) {
+          glm::vec2 left_eye  = glm::vec2(match->poseKeypoints[15*3], match->poseKeypoints[15*3 + 1]);
+          glm::vec2 right_eye = glm::vec2(match->poseKeypoints[16*3], match->poseKeypoints[16*3 + 1]);
+          glm::vec2 nose      = glm::vec2(match->poseKeypoints[ 0*3], match->poseKeypoints[ 0*3 + 1]);
+
+          detection.x      = std::min(std::min(nose.x, left_eye.x), right_eye.x);
+          detection.y      = std::min(std::min(nose.y, left_eye.y), right_eye.y);
+          detection.width  = std::max(std::max(nose.x, left_eye.x), right_eye.x) - detection.x;
+          detection.height = std::max(std::max(nose.y, left_eye.y), right_eye.y) - detection.y;
+
+          return true;
+        }
       }
 
     }
-    return tf;
+    return false;
   }
 
 }

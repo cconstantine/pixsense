@@ -1,8 +1,8 @@
 #include <pixsense/face_finder.hpp>
-#include "opencv2/imgproc/imgproc.hpp"
 #include <limits>
 
 #include <librealsense2/rsutil.h>
+#include "opencv2/imgproc/imgproc.hpp"
 
 float rect_distance(const rs2::depth_frame& depth, const cv::Rect& area) {
   // fprintf(stderr, "rect_distance: depth: (%d, %d)\n", depth.get_width(), depth.get_height());
@@ -35,20 +35,10 @@ namespace Pixsense {
 
 
   TrackedFace::TrackedFace() :
-   is_copy(false),
    has_face(false),
    was_tracking(false),
    started_tracking_at(std::chrono::system_clock::from_time_t(0)),
    had_face_at(std::chrono::system_clock::from_time_t(0))
-  { }
-
-  TrackedFace::TrackedFace(const TrackedFace& copy) :
-    is_copy(true),
-    face(copy.face),
-    has_face(copy.has_face),
-    was_tracking(copy.was_tracking),
-    started_tracking_at(copy.started_tracking_at),
-    had_face_at(copy.had_face_at)
   { }
 
   bool TrackedFace::is_tracking()
@@ -60,8 +50,7 @@ namespace Pixsense {
 
     std::chrono::duration<float> since_started_tracking = now - started_tracking_at;
     if (tracking && since_started_tracking.count() > 30.0f) {
-      if (!is_copy)
-        fprintf(stderr, "Face tracking timed out\n");
+      fprintf(stderr, "Face tracking timed out\n");
       cancel_tracking();
       return false;
     }
@@ -76,8 +65,7 @@ namespace Pixsense {
   void TrackedFace::tracking(cv::Rect face)
   {
     if(!is_tracking()) {
-      if (!is_copy)
-        fprintf(stderr, "Face tracking started\n");
+      fprintf(stderr, "Face tracking started\n");
       started_tracking_at = std::chrono::high_resolution_clock::now();
     }
     this->face = face;
@@ -90,8 +78,7 @@ namespace Pixsense {
   {
     has_face = false;
     if (was_tracking && !is_tracking()) {
-      if (!is_copy)
-        fprintf(stderr, "Face tracking stopped\n");
+      fprintf(stderr, "Face tracking stopped\n");
       cancel_tracking();
     }
   }
@@ -113,35 +100,30 @@ namespace Pixsense {
     });   
   }
 
-  void RealsenseTracker::tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location) {
+  Pixsense::TrackedFace& RealsenseTracker::tracking() {
+    return tracked_face;
+  }
+
+  bool RealsenseTracker::tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location) {
     try {
-      rs2::frameset unaligned_frames;
-      rs2::align align(rs2_stream::RS2_STREAM_COLOR);
-
       if (started ) {
-        unaligned_frames = pipe->wait_for_frames();
-        rs2::frameset aligned_frames = align.process(unaligned_frames);
-        // rs2::video_frame images = aligned_frames.get_color_frame();
-        rs2::depth_frame depths = unaligned_frames.get_depth_frame();
-        rs2::video_frame ir_frame = unaligned_frames.get_infrared_frame(1);
-        // cv::Mat image_matrix = RealsenseTracker::frame_to_mat(images);
-        cv::Mat depth_matrix = RealsenseTracker::frame_to_mat(depths);
-        cv::Mat greys_matrix = RealsenseTracker::frame_to_mat(ir_frame);
+        // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
+        rs2::frameset unaligned_frames = pipe->wait_for_frames();
 
-        cv::Mat frame;
-        cvtColor(greys_matrix, frame, cv::COLOR_GRAY2BGR);
-        tracked_face = face_detect.detect(frame, depth_matrix);
-        if(!tracked_face.is_tracking()) {
-          return;
+        cv::Rect real_face;
+        if(face_detect.detect(unaligned_frames, real_face)) {
+          fprintf(stderr, "tracking\n");
+          tracked_face.tracking(real_face);
         }
-        cv::Rect real_face = cv::Rect(
-          tracked_face.face.x , tracked_face.face.y ,
-          tracked_face.face.width , tracked_face.face.height);
 
-        float distance = rect_distance(depths, real_face);
+        if(!tracked_face.is_tracking()) {
+          return false;
+        }
+        rs2::depth_frame depths = unaligned_frames.get_depth_frame();
+        float            distance = rect_distance(depths, real_face);
 
-        if (distance == 0.0f) {
-          return;
+        if (distance < 0.100f) {
+          return false;
         }
 
         rs2_intrinsics intrin = depths.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
@@ -150,6 +132,7 @@ namespace Pixsense {
         rs2_deproject_pixel_to_point(&face_location[0], &intrin, pixel, distance);
         face_location.y = -face_location.y;
         face_location.x = -face_location.x;
+        return true;
       } else {
         update_pipe();
       }
@@ -158,7 +141,7 @@ namespace Pixsense {
       started = false;
       update_pipe();
     }
-    return;
+    return false;
   }
 
   void RealsenseTracker::update_pipe() {
@@ -193,7 +176,7 @@ namespace Pixsense {
   }
 
   // Convert rs2::frame to cv::Mat
-  cv::Mat RealsenseTracker::frame_to_mat(const rs2::frame& f)
+  cv::Mat AbstractFaceTracker::frame_to_mat(const rs2::frame& f)
   {
       using namespace cv;
       using namespace rs2;

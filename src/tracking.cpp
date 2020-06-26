@@ -7,15 +7,14 @@
 // If the user wants to learn to use the OpenPose C++ library, we highly recommend to start with the examples in
 // `examples/tutorial_api_cpp/`.
 
-#include <pixsense/tracking_service.hpp>
 #include <pixsense/face_finder.hpp>
 #include <pixsense/eye_tracker.hpp>
 
 #include <gflags/gflags.h>
 
+using namespace std;
 int main(int argc, char *argv[])
 {
-
   // Parsing command line flags
   gflags::ParseCommandLineFlags(&argc, &argv, false);
 
@@ -40,9 +39,9 @@ int main(int argc, char *argv[])
   Pixsense::EyeTracker tracker;
 
   while(!tracker.should_exit) {
-    rt.tick(tracker, target);
-
-
+    if (rt.tick(tracker, target)) {
+      fprintf(stderr, "% 2.3f, % 2.3f, % 2.3f\n", target.x, target.y , target.z);
+    } 
   }
 
   // Return successful message

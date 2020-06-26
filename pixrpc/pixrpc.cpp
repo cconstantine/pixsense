@@ -4,14 +4,14 @@
 namespace Pixsense
 {
 
-  void TrackingServiceImpl::send_location(float x, float y, float z) {
+  void TrackingServiceImpl::send_location(const glm::vec3& loc) {
 
     {
       std::lock_guard<std::mutex> lk(m);
 
-      current_location.set_x(x);
-      current_location.set_y(y);
-      current_location.set_z(z);
+      current_location.set_x(loc.x);
+      current_location.set_y(loc.y);
+      current_location.set_z(loc.z);
     }
 
     cv.notify_all();
