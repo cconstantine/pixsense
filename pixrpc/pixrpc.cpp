@@ -1,34 +1,45 @@
-#include <pixsense/tracking_service.hpp>
-#include "pixrpc.grpc.pb.h"
+#include <pixrpc/pixrpc.hpp>
 
-namespace Pixsense
+namespace Pixrpc
 {
 
-  void TrackingServiceImpl::send_location(const glm::vec3& loc) {
-
-    {
-      std::lock_guard<std::mutex> lk(m);
-
-      current_location.set_x(loc.x);
-      current_location.set_y(loc.y);
-      current_location.set_z(loc.z);
-    }
-
-    cv.notify_all();
+  void serialize (const Location& item, std::ostream& out)
+  {
+    dlib::serialize(item.x, out);
+    dlib::serialize(item.y, out);
+    dlib::serialize(item.z, out);
   }
 
-  grpc::Status TrackingServiceImpl::location_stream(
-    grpc::ServerContext* context,
-    const pixrpc::LocationStreamArgs* args,
-    grpc::ServerWriter<pixrpc::Location>* stream
-  ) {
-    while(true) {
-      std::unique_lock<std::mutex> lk(m);
-      cv.wait(lk);
+  void deserialize (Location& item, std::istream& in)
+  {
+    dlib::deserialize(item.x, in);
+    dlib::deserialize(item.y, in);
+    dlib::deserialize(item.z, in);
+  }
 
-      stream->Write(current_location);
-    }
-    return grpc::Status::OK;
+  Server::Server(unsigned short port) :
+    in(0), out(0)
+  {
+    bridge.reconfigure(dlib::listen_on_port(port), dlib::transmit(out));
+  }
+
+  void Server::send_location(struct Location& loc) {
+  out.enqueue_or_timeout(loc, 10);
+  }
+
+
+  Client::Client(const std::string& ip, unsigned short port) :
+    in(4), out(4)
+  {
+    bridge.reconfigure(
+      dlib::connect_to_ip_and_port(ip, port),
+      dlib::receive(in)
+    );
+  }
+
+  void Client::receive_location(struct Location& loc) {
+    dlib::bridge_status bs = bridge.get_bridge_status();
+    in.dequeue(loc);
   }
 
 }

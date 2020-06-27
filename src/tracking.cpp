@@ -9,6 +9,7 @@
 
 #include <pixsense/face_finder.hpp>
 #include <pixsense/eye_tracker.hpp>
+#include <pixrpc/pixrpc.hpp>
 
 #include <gflags/gflags.h>
 
@@ -18,6 +19,7 @@ int main(int argc, char *argv[])
   // Parsing command line flags
   gflags::ParseCommandLineFlags(&argc, &argv, false);
 
+  Pixrpc::Server server(5000);
   // std::string server_address("0.0.0.0:5000");
   // Pixsense::TrackingServiceImpl service;
   // grpc::ServerBuilder builder;
@@ -40,7 +42,8 @@ int main(int argc, char *argv[])
 
   while(!tracker.should_exit) {
     if (rt.tick(tracker, target)) {
-      fprintf(stderr, "% 2.3f, % 2.3f, % 2.3f\n", target.x, target.y , target.z);
+      struct Pixrpc::Location loc = {target.x, target.y, target.z};
+      server.send_location(loc);
     } 
   }
 

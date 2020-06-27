@@ -112,7 +112,6 @@ namespace Pixsense {
 
         cv::Rect real_face;
         if(face_detect.detect(unaligned_frames, real_face)) {
-          fprintf(stderr, "tracking\n");
           tracked_face.tracking(real_face);
         }
 
@@ -150,7 +149,7 @@ namespace Pixsense {
       fprintf(stderr, "RealsenseTracker: starting with %zu devices\n", device_count);
       rs2::config config;
       config.enable_stream(RS2_STREAM_DEPTH, 1280, 720,  RS2_FORMAT_Z16, 30);
-      config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
+      // config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
       config.enable_stream(RS2_STREAM_INFRARED, 1, 1280, 720, RS2_FORMAT_Y8, 30);
 
       // config.enable_stream(RS2_STREAM_INFRARED, 2);

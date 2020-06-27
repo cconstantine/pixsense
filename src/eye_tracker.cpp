@@ -138,7 +138,6 @@ namespace Pixsense {
     cv::Mat frame;
     cvtColor(greys_matrix, frame, cv::COLOR_GRAY2BGR);
 
-    op::opLog("******************** detect ********************", op::Priority::High);
 
     if(frame.cols > 0 && frame.rows > 0) {
       std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
@@ -147,7 +146,6 @@ namespace Pixsense {
       std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
 
       std::chrono::duration<float> time_duration = end_time - start_time;
-      fprintf(stderr, "%05.5fms\n", time_duration.count() * 1000);
 
       if (datumProcessed != nullptr && !datumProcessed->empty() && datumProcessed->at(0)->poseKeypoints.getSize(0) > 0)
       {
