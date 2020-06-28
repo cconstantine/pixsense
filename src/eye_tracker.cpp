@@ -183,7 +183,7 @@ namespace Pixsense {
         detection.width  = std::max(std::max(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x) - detection.x;
         detection.height = std::max(std::max(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y) - detection.y;
 
-        return false;
+        return true;
       }
 
     }
