@@ -3,7 +3,9 @@
 // OpenPose dependencies
 #include <pixsense/eye_tracker.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
+#define GLM_ENABLE_EXPERIMENTAL 1
 
+#include <glm/gtx/string_cast.hpp>
 namespace Pixsense {
 
   void configureWrapper(op::Wrapper& opWrapper)
@@ -133,37 +135,55 @@ namespace Pixsense {
     rs2::video_frame ir_frame = unaligned_frames.get_infrared_frame(1);
     // cv::Mat image_matrix = RealsenseTracker::frame_to_mat(images);
     // cv::Mat depth_matrix = RealsenseTracker::frame_to_mat(depths);
-    cv::Mat greys_matrix = AbstractFaceTracker::frame_to_mat(ir_frame);
+    cv::Mat grays_matrix = AbstractFaceTracker::frame_to_mat(ir_frame);
 
     cv::Mat frame;
-    cvtColor(greys_matrix, frame, cv::COLOR_GRAY2BGR);
+    cvtColor(grays_matrix, frame, cv::COLOR_GRAY2BGR);
 
 
     if(frame.cols > 0 && frame.rows > 0) {
-      std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
-      std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
-
-      std::chrono::duration<float> time_duration = end_time - start_time;
 
       if (datumProcessed != nullptr && !datumProcessed->empty() && datumProcessed->at(0)->poseKeypoints.getSize(0) > 0)
       {
         std::shared_ptr<op::Datum> match = datumProcessed->at(0);
+        op::Array<float> pose_keypoints = match->poseKeypoints;
+        fprintf(stderr, "******************************************\n");
+        fprintf(stderr, "%p: %d\n", match.get(), pose_keypoints.getStride(0));
+        fprintf(stderr, "%s\n", pose_keypoints.toString().c_str());
 
-        float confidence = match->poseKeypoints[15*3 + 2] * match->poseKeypoints[16*3 + 2] * match->poseKeypoints[0*3 + 2];
-        if (confidence > 0.1) {
-          glm::vec2 left_eye  = glm::vec2(match->poseKeypoints[15*3], match->poseKeypoints[15*3 + 1]);
-          glm::vec2 right_eye = glm::vec2(match->poseKeypoints[16*3], match->poseKeypoints[16*3 + 1]);
-          glm::vec2 nose      = glm::vec2(match->poseKeypoints[ 0*3], match->poseKeypoints[ 0*3 + 1]);
+        std::vector<struct person> persons;
+        persons.resize(pose_keypoints.getSize(0));
 
-          detection.x      = std::min(std::min(nose.x, left_eye.x), right_eye.x);
-          detection.y      = std::min(std::min(nose.y, left_eye.y), right_eye.y);
-          detection.width  = std::max(std::max(nose.x, left_eye.x), right_eye.x) - detection.x;
-          detection.height = std::max(std::max(nose.y, left_eye.y), right_eye.y) - detection.y;
-
-          return true;
+        for(int i = 0;i < pose_keypoints.getSize(0);i++) {
+          persons[i] = (struct person){
+            glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
+            glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1]),
+            glm::vec2(pose_keypoints[i*75 +  0*3], pose_keypoints[i*75 +  0*3 + 1])
+          };
+          fprintf(stderr, "%s\n", glm::to_string(persons[i].nose).c_str());
         }
+        float distance = INFINITY;
+        struct person previous_selection = selected_person;
+
+        for(int i = 0;i < persons.size();i++) {
+          float dist = glm::distance(previous_selection.nose, persons[i].nose);
+          if (dist < distance) {
+            distance = dist;
+            selected_person = persons[i];
+          }
+        }
+
+        fprintf(stderr, "selection: %s\n", glm::to_string(selected_person.nose).c_str());
+
+
+        detection.x      = std::min(std::min(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x);
+        detection.y      = std::min(std::min(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y);
+        detection.width  = std::max(std::max(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x) - detection.x;
+        detection.height = std::max(std::max(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y) - detection.y;
+
+        return false;
       }
 
     }

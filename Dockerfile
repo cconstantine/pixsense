@@ -67,7 +67,7 @@ RUN make -j $(nproc)
 RUN make install
 
 ########### Start Pixsense
-WORKDIR /app
+WORKDIR /app/build
 ENV HOME="/app"
 
 #This user schenanigans allows for local development
