@@ -5,8 +5,20 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #define GLM_ENABLE_EXPERIMENTAL 1
 
+#include <opencv2/highgui.hpp>
 #include <glm/gtx/string_cast.hpp>
 namespace Pixsense {
+
+void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar(255,255,255)) {
+  int x1 = (int)(rect.x);
+  int y1 = (int)(rect.y);
+  int x2 = (int)((rect.x + rect.width));
+  int y2 = (int)((rect.y + rect.height));
+
+  //
+
+  cv::rectangle(image, cv::Point(x1, y1), cv::Point(x2, y2), color, 5, 4);
+}
 
   void configureWrapper(op::Wrapper& opWrapper)
   {
@@ -84,9 +96,9 @@ namespace Pixsense {
       //     (float)FLAGS_hand_alpha_heatmap, (float)FLAGS_hand_render_threshold};
       // opWrapper.configure(wrapperStructHand);
       // Extra functionality configuration (use op::WrapperStructExtra{} to disable it)
-      const op::WrapperStructExtra wrapperStructExtra{
-          FLAGS_3d, FLAGS_3d_min_views, FLAGS_identification, FLAGS_tracking, FLAGS_ik_threads};
-      opWrapper.configure(wrapperStructExtra);
+      // const op::WrapperStructExtra wrapperStructExtra{
+      //     FLAGS_3d, FLAGS_3d_min_views, FLAGS_identification, FLAGS_tracking, FLAGS_ik_threads};
+      // opWrapper.configure(wrapperStructExtra);
       // Producer (use default to disable any input)
       // const op::WrapperStructInput wrapperStructInput{
       //     producerType, producerString, FLAGS_frame_first, FLAGS_frame_step, FLAGS_frame_last,
@@ -123,6 +135,8 @@ namespace Pixsense {
 
   bool EyeTracker::detect(const rs2::frameset &unaligned_frames, cv::Rect& detection)
   {
+    bool is_detected = false;
+
     if(!opWrapper.isRunning()) {
       opWrapper.stop();
       should_exit = true;
@@ -140,54 +154,71 @@ namespace Pixsense {
     cv::Mat frame;
     cvtColor(grays_matrix, frame, cv::COLOR_GRAY2BGR);
 
-
     if(frame.cols > 0 && frame.rows > 0) {
+      cv::Rect detection_window;
+
+      detection_window.x = 0;
+      detection_window.y = 0;
+      detection_window.width = frame.cols;
+      detection_window.height = frame.rows;
+
+      if (previous_frame.cols > 0 && previous_frame.rows > 0) {
+        cv::Mat frameDelta;
+        
+        cv::absdiff(previous_frame, grays_matrix, frameDelta);
+        double min, max;
+        cv::minMaxLoc(frameDelta, &min, &max);
+
+        if (max < 100) {
+          return false;
+        }
+      }
+      grays_matrix.copyTo(previous_frame);
+
+
+
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
 
-      if (datumProcessed != nullptr && !datumProcessed->empty() && datumProcessed->at(0)->poseKeypoints.getSize(0) > 0)
+      if (datumProcessed != nullptr && !datumProcessed->empty() )
       {
         std::shared_ptr<op::Datum> match = datumProcessed->at(0);
+
         op::Array<float> pose_keypoints = match->poseKeypoints;
-        fprintf(stderr, "******************************************\n");
-        fprintf(stderr, "%p: %d\n", match.get(), pose_keypoints.getStride(0));
-        fprintf(stderr, "%s\n", pose_keypoints.toString().c_str());
 
-        std::vector<struct person> persons;
-        persons.resize(pose_keypoints.getSize(0));
+        if (pose_keypoints.getSize(0) > 0) {
+          std::vector<struct person> persons;
+          persons.resize(pose_keypoints.getSize(0));
 
-        for(int i = 0;i < pose_keypoints.getSize(0);i++) {
-          persons[i] = (struct person){
-            glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
-            glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1]),
-            glm::vec2(pose_keypoints[i*75 +  0*3], pose_keypoints[i*75 +  0*3 + 1])
-          };
-          fprintf(stderr, "%s\n", glm::to_string(persons[i].nose).c_str());
-        }
-        float distance = INFINITY;
-        struct person previous_selection = selected_person;
-
-        for(int i = 0;i < persons.size();i++) {
-          float dist = glm::distance(previous_selection.nose, persons[i].nose);
-          if (dist < distance) {
-            distance = dist;
-            selected_person = persons[i];
+          for(int i = 0;i < pose_keypoints.getSize(0);i++) {
+            persons[i] = (struct person){
+              glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
+              glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1]),
+              glm::vec2(pose_keypoints[i*75 +  0*3], pose_keypoints[i*75 +  0*3 + 1])
+            };
           }
+          float distance = INFINITY;
+          struct person previous_selection = selected_person;
+
+          for(int i = 0;i < persons.size();i++) {
+            float dist = glm::distance(previous_selection.nose, persons[i].nose);
+            if (dist < distance) {
+              distance = dist;
+              selected_person = persons[i];
+            }
+          }
+
+          detection.x      = std::min(std::min(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x);
+          detection.y      = std::min(std::min(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y);
+          detection.width  = std::max(std::max(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x) - detection.x;
+          detection.height = std::max(std::max(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y) - detection.y;
+          is_detected = true;
         }
-
-        fprintf(stderr, "selection: %s\n", glm::to_string(selected_person.nose).c_str());
-
-
-        detection.x      = std::min(std::min(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x);
-        detection.y      = std::min(std::min(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y);
-        detection.width  = std::max(std::max(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x) - detection.x;
-        detection.height = std::max(std::max(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y) - detection.y;
-
-        return true;
       }
 
     }
-    return false;
+
+    return is_detected;
   }
 
 }

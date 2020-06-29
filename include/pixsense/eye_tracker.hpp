@@ -22,6 +22,8 @@ namespace Pixsense {
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
 
     struct person selected_person;
+
+    cv::Mat previous_frame;
   };
 
 }
