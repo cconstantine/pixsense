@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.1-cudnn7-devel
+FROM nvidia/cuda:10.0-cudnn7-devel
 
 #get deps
 RUN apt-get update && \
@@ -65,6 +65,12 @@ WORKDIR /dlib/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr ..
 RUN make -j $(nproc)
 RUN make install
+
+# catch2 (test framework)
+WORKDIR /catch2
+RUN git clone --branch v2.12.3 --depth 1 --recursive --shallow-submodules https://github.com/catchorg/Catch2.git .
+RUN cmake -Bbuild -H. -DBUILD_TESTING=OFF
+RUN cmake --build build/ --target install
 
 ########### Start Pixsense
 WORKDIR /app/build

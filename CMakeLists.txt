@@ -28,3 +28,7 @@ target_link_libraries(tracking
 
 add_executable(client src/client.cpp)
 target_link_libraries(client ${PIXRPC_LIBRARY})
+
+find_package(Catch2 REQUIRED)
+add_executable(tests src/tests.cpp)
+target_link_libraries(tests Catch2::Catch2)
