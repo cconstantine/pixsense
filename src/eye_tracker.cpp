@@ -9,16 +9,25 @@
 #include <glm/gtx/string_cast.hpp>
 namespace Pixsense {
 
-void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar(255,255,255)) {
-  int x1 = (int)(rect.x);
-  int y1 = (int)(rect.y);
-  int x2 = (int)((rect.x + rect.width));
-  int y2 = (int)((rect.y + rect.height));
+  void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar(255,255,255)) {
+    int x1 = (int)(rect.x);
+    int y1 = (int)(rect.y);
+    int x2 = (int)((rect.x + rect.width));
+    int y2 = (int)((rect.y + rect.height));
 
-  //
+    //
 
-  cv::rectangle(image, cv::Point(x1, y1), cv::Point(x2, y2), color, 5, 4);
-}
+    cv::rectangle(image, cv::Point(x1, y1), cv::Point(x2, y2), color, 5, 4);
+  }
+
+  Person::Person() { }
+  Person::Person(const Person& p) : left_eye(p.left_eye), right_eye(p.right_eye) {  }
+  Person::Person(glm::vec2 left_eye, glm::vec2 right_eye) : left_eye(left_eye), right_eye(right_eye) { }
+
+  glm::vec2 Person::midpoint() {
+    glm::vec2 sum = left_eye + right_eye;
+    return glm::vec2(sum.x / 2.0f, sum.y / 2.0f);
+  }
 
   void configureWrapper(op::Wrapper& opWrapper)
   {
@@ -155,13 +164,6 @@ void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar
     cvtColor(grays_matrix, frame, cv::COLOR_GRAY2BGR);
 
     if(frame.cols > 0 && frame.rows > 0) {
-      cv::Rect detection_window;
-
-      detection_window.x = 0;
-      detection_window.y = 0;
-      detection_window.width = frame.cols;
-      detection_window.height = frame.rows;
-
       if (previous_frame.cols > 0 && previous_frame.rows > 0) {
         cv::Mat frameDelta;
         
@@ -169,13 +171,11 @@ void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar
         double min, max;
         cv::minMaxLoc(frameDelta, &min, &max);
 
-        if (max < 100) {
+        if (max < 50) {
           return false;
         }
       }
       grays_matrix.copyTo(previous_frame);
-
-
 
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
@@ -187,31 +187,35 @@ void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar
         op::Array<float> pose_keypoints = match->poseKeypoints;
 
         if (pose_keypoints.getSize(0) > 0) {
-          std::vector<struct person> persons;
-          persons.resize(pose_keypoints.getSize(0));
+          std::vector<Person> persons;
+          // persons.resize(pose_keypoints.getSize(0));
 
           for(int i = 0;i < pose_keypoints.getSize(0);i++) {
-            persons[i] = (struct person){
-              glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
-              glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1]),
-              glm::vec2(pose_keypoints[i*75 +  0*3], pose_keypoints[i*75 +  0*3 + 1])
-            };
+            if (pose_keypoints[i*75 + 16*3 + 2] > 0.f &&
+                pose_keypoints[i*75 + 15*3 + 2] > 0.f) {
+              persons.push_back(Person(
+                glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
+                glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1])
+              ));
+            }
           }
           float distance = INFINITY;
-          struct person previous_selection = selected_person;
+          Person previous_selection = selected_person;
 
           for(int i = 0;i < persons.size();i++) {
-            float dist = glm::distance(previous_selection.nose, persons[i].nose);
+            float dist = glm::distance(previous_selection.midpoint(), persons[i].midpoint());
             if (dist < distance) {
               distance = dist;
               selected_person = persons[i];
             }
           }
 
-          detection.x      = std::min(std::min(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x);
-          detection.y      = std::min(std::min(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y);
-          detection.width  = std::max(std::max(selected_person.nose.x, selected_person.left_eye.x), selected_person.right_eye.x) - detection.x;
-          detection.height = std::max(std::max(selected_person.nose.y, selected_person.left_eye.y), selected_person.right_eye.y) - detection.y;
+          float length = glm::distance(selected_person.left_eye, selected_person.right_eye);
+
+          detection.x = selected_person.midpoint().x - length / 2;
+          detection.y = selected_person.midpoint().y - length / 2;
+          detection.width = length;
+          detection.height = length;
           is_detected = true;
         }
       }

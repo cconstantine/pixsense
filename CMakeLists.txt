@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(pixsense)
 
+option(BUILD_TESTS "Build tests program" OFF)
+
 find_package(realsense2 REQUIRED )
 
 find_package(OpenPose REQUIRED)
@@ -29,6 +31,8 @@ target_link_libraries(tracking
 add_executable(client src/client.cpp)
 target_link_libraries(client ${PIXRPC_LIBRARY})
 
-find_package(Catch2 REQUIRED)
-add_executable(tests src/tests.cpp)
-target_link_libraries(tests Catch2::Catch2)
+if (BUILD_TESTS)
+  find_package(Catch2 REQUIRED)
+  add_executable(tests src/tests.cpp)
+  target_link_libraries(tests Catch2::Catch2)
+endif()

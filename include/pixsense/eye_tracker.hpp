@@ -5,10 +5,16 @@
 #include <pixsense/face_finder.hpp>
 
 namespace Pixsense {
-  struct person {
+  class Person {
+  public:
+    Person();
+    Person(const Person& p);
+    Person(glm::vec2 right_eye, glm::vec2 left_eye);
+
     glm::vec2 right_eye;
     glm::vec2 left_eye;
-    glm::vec2 nose;
+
+    glm::vec2 midpoint();
   };
 
   class EyeTracker : public Pixsense::AbstractFaceTracker {
@@ -21,7 +27,7 @@ namespace Pixsense {
   private:
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
 
-    struct person selected_person;
+    Person selected_person;
 
     cv::Mat previous_frame;
   };
