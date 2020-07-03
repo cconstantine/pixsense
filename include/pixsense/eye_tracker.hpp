@@ -1,22 +1,10 @@
 #pragma once
-// OpenPose dependencies
 #include <openpose/headers.hpp>
 
 #include <pixsense/face_finder.hpp>
+#include <pixsense/person.hpp>
 
 namespace Pixsense {
-  class Person {
-  public:
-    Person();
-    Person(const Person& p);
-    Person(glm::vec2 right_eye, glm::vec2 left_eye);
-
-    glm::vec2 right_eye;
-    glm::vec2 left_eye;
-
-    glm::vec2 midpoint();
-  };
-
   class EyeTracker : public Pixsense::AbstractFaceTracker {
   public:
     EyeTracker();

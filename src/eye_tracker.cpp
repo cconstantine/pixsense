@@ -2,11 +2,11 @@
 #include <openpose/flags.hpp>
 // OpenPose dependencies
 #include <pixsense/eye_tracker.hpp>
-#include "opencv2/imgproc/imgproc.hpp"
-#define GLM_ENABLE_EXPERIMENTAL 1
+#include <opencv2/imgproc/imgproc.hpp>
 
-#include <opencv2/highgui.hpp>
-#include <glm/gtx/string_cast.hpp>
+// #define GLM_ENABLE_EXPERIMENTAL 1
+// #include <glm/gtx/string_cast.hpp>
+
 namespace Pixsense {
 
   void draw_rectangle(cv::Mat& image, cv::Rect rect, cv::Scalar color = cv::Scalar(255,255,255)) {
@@ -20,14 +20,6 @@ namespace Pixsense {
     cv::rectangle(image, cv::Point(x1, y1), cv::Point(x2, y2), color, 5, 4);
   }
 
-  Person::Person() { }
-  Person::Person(const Person& p) : left_eye(p.left_eye), right_eye(p.right_eye) {  }
-  Person::Person(glm::vec2 left_eye, glm::vec2 right_eye) : left_eye(left_eye), right_eye(right_eye) { }
-
-  glm::vec2 Person::midpoint() {
-    glm::vec2 sum = left_eye + right_eye;
-    return glm::vec2(sum.x / 2.0f, sum.y / 2.0f);
-  }
 
   void configureWrapper(op::Wrapper& opWrapper)
   {

@@ -1,32 +1,12 @@
 #pragma once
 
 #include <librealsense2/rs.hpp>
-#include <memory>
 #include <glm/glm.hpp>
-#include "opencv2/objdetect/objdetect.hpp"
+
+#include <pixsense/tracked_face.hpp>
 
 namespace Pixsense
 {
-
-  class TrackedFace {
-  public:
-    TrackedFace();
-
-    void tracking(cv::Rect face);
-    void not_tracking();
-    bool is_tracking();
-    bool get_has_face();
-    void cancel_tracking();
-
-    cv::Rect face;
-
-  private:
-    bool was_tracking;
-    bool has_face;
-    std::chrono::time_point<std::chrono::high_resolution_clock> had_face_at;
-    std::chrono::time_point<std::chrono::high_resolution_clock> started_tracking_at;
-  };
-
   class AbstractFaceTracker {
   public:
     virtual bool detect(const rs2::frameset & frame, cv::Rect& detection) = 0;
@@ -51,6 +31,5 @@ namespace Pixsense
 
     bool started;
     TrackedFace  tracked_face;
-
   };
 }
