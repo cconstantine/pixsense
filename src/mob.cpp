@@ -73,6 +73,7 @@ namespace Pixsense {
         std::advance(result, rand() % people.size() );
       } while(result->first == leader_id && people.size() != 1);
 
+      leader_selected_at = now();
       leader_id = result->first;
     }
     output = result->second;
