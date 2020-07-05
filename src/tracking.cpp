@@ -26,7 +26,5 @@ int main(int argc, char *argv[])
     } 
   }
 
-  // Return successful message
-  // server->Wait();
   return 0;
 }

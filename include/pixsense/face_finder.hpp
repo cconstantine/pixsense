@@ -3,7 +3,7 @@
 #include <librealsense2/rs.hpp>
 #include <glm/glm.hpp>
 
-#include <pixsense/tracked_face.hpp>
+#include "opencv2/objdetect/objdetect.hpp"
 
 namespace Pixsense
 {
@@ -21,7 +21,6 @@ namespace Pixsense
     RealsenseTracker();
     bool tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location);
 
-    Pixsense::TrackedFace& tracking();
   private:
     void update_pipe();
 
@@ -30,6 +29,5 @@ namespace Pixsense
     rs2::pipeline_profile pipeline_profile;
 
     bool started;
-    TrackedFace  tracked_face;
   };
 }

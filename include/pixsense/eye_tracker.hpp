@@ -3,6 +3,7 @@
 
 #include <pixsense/face_finder.hpp>
 #include <pixsense/person.hpp>
+#include <pixsense/mob.hpp>
 
 namespace Pixsense {
   class EyeTracker : public Pixsense::AbstractFaceTracker {
@@ -15,9 +16,10 @@ namespace Pixsense {
   private:
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
 
-    Person selected_person;
+    Pixsense::Mob mob;
+
+    unsigned int selected_person;
 
     cv::Mat previous_frame;
   };
-
 }

@@ -136,7 +136,6 @@ namespace Pixsense {
 
   bool EyeTracker::detect(const rs2::frameset &unaligned_frames, cv::Rect& detection)
   {
-    bool is_detected = false;
 
     if(!opWrapper.isRunning()) {
       opWrapper.stop();
@@ -171,6 +170,7 @@ namespace Pixsense {
 
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
+      std::chrono::time_point<std::chrono::high_resolution_clock> now = std::chrono::high_resolution_clock::now();
 
       if (datumProcessed != nullptr && !datumProcessed->empty() )
       {
@@ -187,34 +187,28 @@ namespace Pixsense {
                 pose_keypoints[i*75 + 15*3 + 2] > 0.f) {
               persons.push_back(Person(
                 glm::vec2(pose_keypoints[i*75 + 16*3], pose_keypoints[i*75 + 16*3 + 1]),
-                glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1])
+                glm::vec2(pose_keypoints[i*75 + 15*3], pose_keypoints[i*75 + 15*3 + 1]),
+                now
               ));
             }
           }
-          float distance = INFINITY;
-          Person previous_selection = selected_person;
-
-          for(int i = 0;i < persons.size();i++) {
-            float dist = glm::distance(previous_selection.midpoint(), persons[i].midpoint());
-            if (dist < distance) {
-              distance = dist;
-              selected_person = persons[i];
-            }
-          }
-
-          float length = glm::distance(selected_person.left_eye, selected_person.right_eye);
-
-          detection.x = selected_person.midpoint().x - length / 2;
-          detection.y = selected_person.midpoint().y - length / 2;
-          detection.width = length;
-          detection.height = length;
-          is_detected = true;
+          mob.update(persons);
         }
       }
 
     }
+    Pixsense::Person target;
+    if(mob.leader(target)) {
+      float length = glm::distance(target.left_eye, target.right_eye);
 
-    return is_detected;
+      detection.x = target.midpoint().x - length / 2;
+      detection.y = target.midpoint().y - length / 2;
+      detection.width = length;
+      detection.height = length;
+      return true;
+    }
+
+    return false;
   }
 
 }

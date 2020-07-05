@@ -19,7 +19,13 @@ include_directories("${PIXRPC_INCLUDE}")
 
 include_directories("include/")
 
-add_library(pixsense src/eye_tracker.cpp src/face_finder.cpp src/person.cpp src/tracked_face.cpp)
+add_library(pixsense
+  src/eye_tracker.cpp
+  src/face_finder.cpp
+  src/mob.cpp
+  src/person.cpp
+  src/tracked_face.cpp
+)
 link_libraries(pixsense realsense2 ${OpenPose_LIBS})
 
 add_executable(tracking src/tracking.cpp )
@@ -33,6 +39,10 @@ target_link_libraries(client ${PIXRPC_LIBRARY})
 
 if (BUILD_TESTS)
   find_package(Catch2 REQUIRED)
-  add_executable(tests tests/simple.cpp)
+  add_executable(tests tests/tests.cpp
+    tests/mob_tests.cpp
+    tests/person_tests.cpp
+    tests/simple.cpp
+  )
   target_link_libraries(tests Catch2::Catch2 pixsense )
 endif()

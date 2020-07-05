@@ -3,6 +3,8 @@
 #include <librealsense2/rsutil.h>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#define GLM_ENABLE_EXPERIMENTAL 1
+#include <glm/gtx/string_cast.hpp>
 namespace Pixsense {
 
   float rect_distance(const rs2::depth_frame& depth, const cv::Rect& area) {
@@ -42,10 +44,6 @@ namespace Pixsense {
     });   
   }
 
-  Pixsense::TrackedFace& RealsenseTracker::tracking() {
-    return tracked_face;
-  }
-
   bool RealsenseTracker::tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location) {
     try {
       if (started ) {
@@ -53,13 +51,10 @@ namespace Pixsense {
         rs2::frameset unaligned_frames = pipe->wait_for_frames();
 
         cv::Rect real_face;
-        if(face_detect.detect(unaligned_frames, real_face)) {
-          tracked_face.tracking(real_face);
-        }
-
-        if(!tracked_face.is_tracking()) {
+        if(!face_detect.detect(unaligned_frames, real_face)) {
           return false;
         }
+
         rs2::depth_frame depths = unaligned_frames.get_depth_frame();
         float            distance = rect_distance(depths, real_face);
 
