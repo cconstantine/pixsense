@@ -14,9 +14,6 @@ include_directories(${OpenPose_INCLUDE_DIRS})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(DLIB REQUIRED IMPORTED_TARGET dlib-1)
 
-add_subdirectory("pixrpc/")
-include_directories("${PIXRPC_INCLUDE}")
-
 include_directories("include/")
 
 add_library(pixsense
@@ -27,6 +24,10 @@ add_library(pixsense
   src/tracked_face.cpp
 )
 link_libraries(pixsense realsense2 ${OpenPose_LIBS})
+
+
+add_subdirectory("pixrpc/")
+include_directories("${PIXRPC_INCLUDE}")
 
 add_executable(tracking src/tracking.cpp )
 target_link_libraries(tracking

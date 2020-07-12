@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
   op::opLog("Configuring OpenPose...", op::Priority::High);
   Pixsense::EyeTracker tracker;
 
+  struct Pixrpc::Location loc;
   while(!tracker.should_exit) {
-    if (rt.tick(tracker, target)) {
-      struct Pixrpc::Location loc = {target.x, target.y, target.z};
+    if (rt.tick(tracker, loc.point)) {
       server.send_location(loc);
     } 
   }

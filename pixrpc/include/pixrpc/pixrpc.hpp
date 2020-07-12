@@ -7,17 +7,20 @@
 #include <dlib/bridge.h>
 #include <dlib/type_safe_union.h>
 
+#include <glm/glm.hpp>
+
 namespace Pixrpc {
   struct Location {
-    float x, y, z;
+    glm::vec3 point;
   };
-  void serialize (const Location& item, std::ostream& out);
-  void deserialize (Location& item, std::istream& in);
+
+  void serialize (const struct Pixrpc::Location& item, std::ostream& out);
+  void deserialize (struct Pixrpc::Location& item, std::istream& in);
 
   class Server {
   public:
     Server(unsigned short port);
-    void send_location(struct Location& loc);
+    void send_location(struct Pixrpc::Location& loc);
 
   private:
     dlib::pipe<struct Location> in, out;
@@ -28,7 +31,7 @@ namespace Pixrpc {
   public:
     Client(const std::string& ip, unsigned short port);
 
-    void receive_location(struct Location& loc);
+    void receive_location(struct Pixrpc::Location& loc);
   private:
     dlib::pipe<struct Location> in, out;
     dlib::bridge bridge;

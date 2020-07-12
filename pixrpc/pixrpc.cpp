@@ -3,18 +3,18 @@
 namespace Pixrpc
 {
 
-  void serialize (const Location& item, std::ostream& out)
+  void serialize (const Pixrpc::Location& item, std::ostream& out)
   {
-    dlib::serialize(item.x, out);
-    dlib::serialize(item.y, out);
-    dlib::serialize(item.z, out);
+    dlib::serialize(item.point.x, out);
+    dlib::serialize(item.point.y, out);
+    dlib::serialize(item.point.z, out);
   }
 
-  void deserialize (Location& item, std::istream& in)
+  void deserialize (Pixrpc::Location& item, std::istream& in)
   {
-    dlib::deserialize(item.x, in);
-    dlib::deserialize(item.y, in);
-    dlib::deserialize(item.z, in);
+    dlib::deserialize(item.point.x, in);
+    dlib::deserialize(item.point.y, in);
+    dlib::deserialize(item.point.z, in);
   }
 
   Server::Server(unsigned short port) :
@@ -23,7 +23,7 @@ namespace Pixrpc
     bridge.reconfigure(dlib::listen_on_port(port), dlib::transmit(out));
   }
 
-  void Server::send_location(struct Location& loc) {
+  void Server::send_location(struct Pixrpc::Location& loc) {
   out.enqueue_or_timeout(loc, 10);
   }
 
@@ -37,8 +37,8 @@ namespace Pixrpc
     );
   }
 
-  void Client::receive_location(struct Location& loc) {
-    dlib::bridge_status bs = bridge.get_bridge_status();
+  void Client::receive_location(struct Pixrpc::Location& loc) {
+    // dlib::bridge_status bs = bridge.get_bridge_status();
     in.dequeue(loc);
   }
 
