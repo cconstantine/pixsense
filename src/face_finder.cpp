@@ -6,10 +6,41 @@
 #define GLM_ENABLE_EXPERIMENTAL 1
 #include <glm/gtx/string_cast.hpp>
 
+
 #include <chrono>
 #include <thread>
 
 namespace Pixsense {
+
+  void print_config_reader_contents (
+      const dlib::config_reader& cr,
+      int depth = 0
+  )
+  {
+      // Make a string with depth*4 spaces in it.  
+      const std::string padding(depth*4, ' ');
+
+      // We can obtain a list of all the keys and sub-blocks defined
+      // at the current level in the config reader like so:
+      std::vector<std::string> keys, blocks;
+      cr.get_keys(keys);
+      cr.get_blocks(blocks);
+
+      // Now print all the key/value pairs
+      for (unsigned long i = 0; i < keys.size(); ++i)
+          std::cout << padding << keys[i] << " = " << cr[keys[i]] << std::endl;
+
+      // Now print all the sub-blocks. 
+      for (unsigned long i = 0; i < blocks.size(); ++i)
+      {
+          // First print the block name
+          std::cout << padding << blocks[i] << " { " << std::endl;
+          // Now recursively print the contents of the sub block.  Note that the cr.block()
+          // function returns another config_reader that represents the sub-block.  
+          print_config_reader_contents(cr.block(blocks[i]), depth+1);
+          std::cout << padding << "}" << std::endl;
+      }
+  }
 
   float rect_distance(const rs2::depth_frame& depth, const cv::Rect& area) {
     // fprintf(stderr, "rect_distance: depth: (%d, %d)\n", depth.get_width(), depth.get_height());
@@ -38,9 +69,25 @@ namespace Pixsense {
     return sum / count;
   }
 
-  RealsenseTracker::RealsenseTracker() : 
+  RealsenseTracker::RealsenseTracker(const dlib::config_reader& cr) : 
    started(false)
   {
+    print_config_reader_contents(cr);
+    std::vector<std::string> camera_names;
+    cr.get_blocks(camera_names);
+    for(const std::string camera_name : camera_names) {
+      const dlib::config_reader& config = cr.block(camera_name);
+      
+      std::string id = config["id"];
+      struct CameraDetails cd;
+      cd.pipe = std::make_shared<rs2::pipeline>(realsense_context);
+      cd.offset.x =  dlib::get_option(config, "x", 0.0f);
+      cd.offset.y =  dlib::get_option(config, "y", 0.0f);
+      cd.offset.z =  dlib::get_option(config, "z", 0.0f);
+
+      pipes[config["id"]] = cd;
+    }
+ 
     realsense_context.set_devices_changed_callback([&](rs2::event_information& info)
     {
       update_pipe();
@@ -51,7 +98,7 @@ namespace Pixsense {
     try {
       if (started ) {
         // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
-        rs2::frameset unaligned_frames = pipes[selected_pipe]->wait_for_frames();
+        rs2::frameset unaligned_frames = pipes[selected_pipe].pipe->wait_for_frames();
 
         cv::Rect real_face;
         if(!face_detect.detect(unaligned_frames, real_face)) {
@@ -73,7 +120,9 @@ namespace Pixsense {
         rs2_deproject_pixel_to_point(&face_location[0], &intrin, pixel, distance);
         face_location.y = -face_location.y;
         face_location.x = -face_location.x;
-        // fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(face_location).c_str());
+        face_location += pipes[selected_pipe].offset;
+
+        fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(face_location).c_str());
         return true;
       } else {
         update_pipe();
@@ -87,7 +136,7 @@ namespace Pixsense {
   }
 
   void RealsenseTracker::select_next_pipe() {
-    std::map<std::string, std::shared_ptr<rs2::pipeline>>::const_iterator iter;
+    std::map<std::string, struct CameraDetails>::const_iterator iter;
     for(iter = pipes.begin(); iter != pipes.end(); iter++) {
       if(iter->first == selected_pipe) {
         iter++;
@@ -112,12 +161,15 @@ namespace Pixsense {
           std::this_thread::sleep_for(std::chrono::seconds(2));
         }
         std::string device_name = selected_device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
-        if (pipes.find(device_name) != pipes.end()) {
-          try {
-            pipes[device_name]->stop();
-          } catch(const std::exception& e) { }
+        if (pipes.find(device_name) == pipes.end()) {
+          fprintf(stderr, "Skipping %s\n", device_name.c_str());
+          continue;
         }
-        std::shared_ptr<rs2::pipeline> pipe = std::make_shared<rs2::pipeline>(realsense_context);
+        try {
+          pipes[device_name].pipe->stop();
+        } catch(const std::exception& e) { }
+
+        std::shared_ptr<rs2::pipeline> pipe = pipes[device_name].pipe;
 
         fprintf(stderr, "Device: %s\n", selected_device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
         rs2::config config;
@@ -133,7 +185,6 @@ namespace Pixsense {
         if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED)) {
             depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0.f); // Enable emitter
         }
-        pipes[device_name] = pipe;
         selected_pipe = device_name;
 
         started = true;
@@ -142,7 +193,7 @@ namespace Pixsense {
     } else if (started && device_count == 0) {
       started = false;
       for(auto& iter : pipes) {
-        iter.second->stop();
+        iter.second.pipe->stop();
       }
     }
   }
