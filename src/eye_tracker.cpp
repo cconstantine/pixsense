@@ -134,7 +134,7 @@ namespace Pixsense {
     opWrapper.start();
   }
 
-  bool EyeTracker::detect(const rs2::frameset &unaligned_frames, cv::Rect& detection)
+  bool EyeTracker::detect(const rs2::frameset &unaligned_frames, Pixsense::Mob& mob)
   {
 
     if(!opWrapper.isRunning()) {
@@ -155,18 +155,6 @@ namespace Pixsense {
     cvtColor(grays_matrix, frame, cv::COLOR_GRAY2BGR);
 
     if(frame.cols > 0 && frame.rows > 0) {
-      if (previous_frame.cols > 0 && previous_frame.rows > 0) {
-        cv::Mat frameDelta;
-        
-        cv::absdiff(previous_frame, grays_matrix, frameDelta);
-        double min, max;
-        cv::minMaxLoc(frameDelta, &min, &max);
-
-        if (max < 75) {
-          return mob.has_leader();
-        }
-      }
-      grays_matrix.copyTo(previous_frame);
 
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
@@ -195,16 +183,6 @@ namespace Pixsense {
           mob.update(persons);
         }
       }
-    }
-    Pixsense::Person target;
-    if(mob.leader(target)) {
-      float length = glm::distance(target.left_eye, target.right_eye);
-
-      detection.x = target.midpoint().x - length / 2;
-      detection.y = target.midpoint().y - length / 2;
-      detection.width = length;
-      detection.height = length;
-      return true;
     }
 
     return false;

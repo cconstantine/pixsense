@@ -10,16 +10,10 @@ namespace Pixsense {
   public:
     EyeTracker();
 
-    virtual bool detect(const rs2::frameset & frame, cv::Rect& detection);
+    virtual bool detect(const rs2::frameset & frame, Pixsense::Mob& mob);
 
     bool should_exit;
   private:
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
-
-    Pixsense::Mob mob;
-
-    unsigned int selected_person;
-
-    cv::Mat previous_frame;
   };
 }

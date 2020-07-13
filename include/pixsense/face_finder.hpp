@@ -7,14 +7,15 @@
 
 #include "opencv2/objdetect/objdetect.hpp"
 
+#include <pixsense/mob.hpp>
+
 namespace Pixsense
 {
 
   class AbstractFaceTracker {
   public:
-    virtual bool detect(const rs2::frameset & frame, cv::Rect& detection) = 0;
+    virtual bool detect(const rs2::frameset & frame, Pixsense::Mob& mob) = 0;
 
-  protected:
     static cv::Mat frame_to_mat(const rs2::frame& f);
   };
 
@@ -22,6 +23,8 @@ namespace Pixsense
     std::shared_ptr<rs2::pipeline> pipe;
     glm::vec3 offset;
     glm::mat4 rotation;
+    cv::Mat previous_frame;
+    Pixsense::Mob mob;
   };
 
   class RealsenseTracker

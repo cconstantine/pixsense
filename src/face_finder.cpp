@@ -101,11 +101,38 @@ namespace Pixsense {
         // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
         rs2::frameset unaligned_frames = pipes[selected_pipe].pipe->wait_for_frames();
 
-        cv::Rect real_face;
-        if(!face_detect.detect(unaligned_frames, real_face)) {
+        cv::Mat grays_matrix = AbstractFaceTracker::frame_to_mat(unaligned_frames.get_infrared_frame(1));
+
+        if (pipes[selected_pipe].previous_frame.cols > 0 && pipes[selected_pipe].previous_frame.rows > 0) {
+          cv::Mat frameDelta;
+
+          cv::absdiff(pipes[selected_pipe].previous_frame, grays_matrix, frameDelta);
+          double min, max;
+          cv::minMaxLoc(frameDelta, &min, &max);
+
+          if (max < 75) {
+            if(!pipes[selected_pipe].mob.has_leader()) {
+              select_next_pipe();
+              return false;
+            }
+          }
+        }
+        grays_matrix.copyTo(pipes[selected_pipe].previous_frame);
+
+        face_detect.detect(unaligned_frames, pipes[selected_pipe].mob);
+
+        Pixsense::Person target;
+        if(!pipes[selected_pipe].mob.leader(target)) {
           select_next_pipe();
           return false;
         }
+
+        float length = glm::distance(target.left_eye, target.right_eye);
+        cv::Rect real_face;
+        real_face.x = target.midpoint().x - length / 2;
+        real_face.y = target.midpoint().y - length / 2;
+        real_face.width = length;
+        real_face.height = length;
 
         rs2::depth_frame depths = unaligned_frames.get_depth_frame();
         float            distance = rect_distance(depths, real_face);
