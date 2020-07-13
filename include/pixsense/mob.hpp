@@ -13,6 +13,7 @@ namespace Pixsense {
 
     void update(const std::vector<Pixsense::Person>& visible_people);
     bool leader(Pixsense::Person& output);
+    bool has_leader();
 
     std::map<unsigned int, Pixsense::Person> people;
   protected:

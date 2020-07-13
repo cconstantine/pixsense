@@ -111,7 +111,7 @@ namespace Pixsense {
         float            distance = rect_distance(depths, real_face);
 
         if (distance < 0.100f) {
-          select_next_pipe();
+          // select_next_pipe();
           return false;
         }
 
@@ -122,7 +122,7 @@ namespace Pixsense {
         face_location.y = -face_location.y;
         face_location.x = -face_location.x;
         face_location += pipes[selected_pipe].offset;
-        fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(face_location).c_str());
+        // fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(face_location).c_str());
 
         face_location = pipes[selected_pipe].rotation*glm::vec4(face_location, 1.0f);
         return true;
@@ -160,7 +160,7 @@ namespace Pixsense {
       for (auto&& selected_device : realsense_context.query_devices()) {
         if(started) {
           fprintf(stderr, "Pausing\n");
-          std::this_thread::sleep_for(std::chrono::seconds(2));
+          std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         std::string device_name = selected_device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
         if (pipes.find(device_name) == pipes.end()) {
@@ -173,10 +173,12 @@ namespace Pixsense {
 
         std::shared_ptr<rs2::pipeline> pipe = pipes[device_name].pipe;
 
-        fprintf(stderr, "Device: %s\n", selected_device.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
+        fprintf(stderr, "Device: %s\n", device_name.c_str());
         rs2::config config;
+
+        config.enable_device(device_name);
         config.enable_stream(RS2_STREAM_DEPTH, 1280, 720,  RS2_FORMAT_Z16, 30);
-        // config.enable_stream(RS2_STREAM_COLOR, 1920, 1080, RS2_FORMAT_RGB8, 30);
+        config.disable_stream(RS2_STREAM_COLOR); //, 1920, 1080, RS2_FORMAT_RGB8, 30);
         config.enable_stream(RS2_STREAM_INFRARED, 1, 1280, 720, RS2_FORMAT_Y8, 30);
 
         // config.enable_stream(RS2_STREAM_INFRARED, 2);

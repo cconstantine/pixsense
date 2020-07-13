@@ -162,8 +162,8 @@ namespace Pixsense {
         double min, max;
         cv::minMaxLoc(frameDelta, &min, &max);
 
-        if (max < 50) {
-          return false;
+        if (max < 75) {
+          return mob.has_leader();
         }
       }
       grays_matrix.copyTo(previous_frame);
@@ -195,7 +195,6 @@ namespace Pixsense {
           mob.update(persons);
         }
       }
-
     }
     Pixsense::Person target;
     if(mob.leader(target)) {

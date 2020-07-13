@@ -50,19 +50,26 @@ namespace Pixsense {
       update(leftovers);
     }
 
+  }
+
+  bool Mob::has_leader() {
+    Pixsense::Person p;
+    return leader(p);
+  }
+
+  bool Mob::leader(Pixsense::Person& output) {
     // Cleanup untracked people.
     for(std::map<unsigned int, Pixsense::Person>::const_iterator iter = people.cbegin();iter != people.cend();) {
       std::chrono::duration<float> since_last_seen = now() - iter->second.last_seen;
 
       if (since_last_seen.count() > 1.0f) {
         people.erase(iter++);
+        fprintf(stderr, "Person timed out (%d)\n", people.size());
       } else {
         ++iter;
       }
     }
-  }
 
-  bool Mob::leader(Pixsense::Person& output) {
     std::chrono::duration<float> since_leader_selected = now() - leader_selected_at;
     bool expired = since_leader_selected.count() > 30.0f;
 
