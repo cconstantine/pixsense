@@ -5,7 +5,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL 1
 #include <glm/gtx/string_cast.hpp>
-
+#include <glm/gtx/transform.hpp>
 
 #include <chrono>
 #include <thread>
@@ -84,6 +84,7 @@ namespace Pixsense {
       cd.offset.x =  dlib::get_option(config, "x", 0.0f);
       cd.offset.y =  dlib::get_option(config, "y", 0.0f);
       cd.offset.z =  dlib::get_option(config, "z", 0.0f);
+      cd.rotation = glm::rotate(glm::radians(dlib::get_option(config, "rotation", 0.0f)), glm::vec3(0.0f, 1.1f, 0.0f));
 
       pipes[config["id"]] = cd;
     }
@@ -121,8 +122,9 @@ namespace Pixsense {
         face_location.y = -face_location.y;
         face_location.x = -face_location.x;
         face_location += pipes[selected_pipe].offset;
-
         fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(face_location).c_str());
+
+        face_location = pipes[selected_pipe].rotation*glm::vec4(face_location, 1.0f);
         return true;
       } else {
         update_pipe();

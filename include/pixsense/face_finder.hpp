@@ -21,6 +21,7 @@ namespace Pixsense
   struct CameraDetails {
     std::shared_ptr<rs2::pipeline> pipe;
     glm::vec3 offset;
+    glm::mat4 rotation;
   };
 
   class RealsenseTracker
