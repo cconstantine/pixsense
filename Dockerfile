@@ -54,7 +54,7 @@ RUN make install
 
 # librealsense
 WORKDIR /librealsense
-RUN git clone --branch v2.32.1 --depth 1 --recursive --shallow-submodules https://github.com/IntelRealSense/librealsense.git .
+RUN git clone --branch v2.38.1 --depth 1 --recursive --shallow-submodules https://github.com/IntelRealSense/librealsense.git .
 WORKDIR /librealsense/build
 RUN cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_GRAPHICAL_EXAMPLES=OFF -DBUILD_WITH_TM2=OFF .. && make -j `nproc` && make install
 

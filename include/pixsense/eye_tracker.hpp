@@ -12,7 +12,6 @@ namespace Pixsense {
 
     virtual bool detect(const rs2::frameset & frame, Pixsense::Mob& mob);
 
-    bool should_exit;
   private:
     op::Wrapper opWrapper{op::ThreadManagerMode::Asynchronous};
   };

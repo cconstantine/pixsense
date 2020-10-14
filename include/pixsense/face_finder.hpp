@@ -15,7 +15,6 @@ namespace Pixsense
   class AbstractFaceTracker {
   public:
     virtual bool detect(const rs2::frameset & frame, Pixsense::Mob& mob) = 0;
-
     static cv::Mat frame_to_mat(const rs2::frame& f);
   };
 
@@ -32,6 +31,8 @@ namespace Pixsense
   public:
     RealsenseTracker(const dlib::config_reader& cr);
     bool tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location);
+
+    void shift(glm::vec3 offset);
 
   private:
     void update_pipe();

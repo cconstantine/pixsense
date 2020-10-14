@@ -6,6 +6,7 @@
 #define GLM_ENABLE_EXPERIMENTAL 1
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
+#include <opencv2/highgui.hpp>
 
 #include <chrono>
 #include <thread>
@@ -95,9 +96,18 @@ namespace Pixsense {
     });   
   }
 
+  void RealsenseTracker::shift(glm::vec3 offset)
+  {
+    if (started) {
+      pipes[selected_pipe].offset = pipes[selected_pipe].offset + offset;
+      fprintf(stderr, "%s: %s\n", selected_pipe.c_str(), glm::to_string(pipes[selected_pipe].offset).c_str());
+    }
+  }
+
   bool RealsenseTracker::tick(AbstractFaceTracker& face_detect, glm::vec3 &face_location) {
     try {
       if (started ) {
+
         // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
         rs2::frameset unaligned_frames = pipes[selected_pipe].pipe->wait_for_frames();
 

@@ -3,6 +3,7 @@
 // OpenPose dependencies
 #include <pixsense/eye_tracker.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 
 // #define GLM_ENABLE_EXPERIMENTAL 1
 // #include <glm/gtx/string_cast.hpp>
@@ -119,7 +120,8 @@ namespace Pixsense {
       // GUI (comment or use default argument to disable any visual output)
       const op::WrapperStructGui wrapperStructGui{
           op::flagsToDisplayMode(FLAGS_display, FLAGS_3d), !FLAGS_no_gui_verbose, FLAGS_fullscreen};
-      opWrapper.configure(wrapperStructGui);
+//      opWrapper.configure(wrapperStructGui);
+      opWrapper.configure(op::WrapperStructGui{});
       // Set to single-thread (for sequential processing and/or debugging and/or reducing latency)
       if (FLAGS_disable_multi_thread)
           opWrapper.disableMultiThreading();
@@ -128,7 +130,7 @@ namespace Pixsense {
     }
   }
 
-  EyeTracker::EyeTracker() : should_exit(false)
+  EyeTracker::EyeTracker()
   {
     configureWrapper(opWrapper);
     opWrapper.start();
@@ -136,12 +138,6 @@ namespace Pixsense {
 
   bool EyeTracker::detect(const rs2::frameset &unaligned_frames, Pixsense::Mob& mob)
   {
-
-    if(!opWrapper.isRunning()) {
-      opWrapper.stop();
-      should_exit = true;
-      return false;
-    }
     // rs2::align align(rs2_stream::RS2_STREAM_COLOR);
     // rs2::frameset aligned_frames = align.process(unaligned_frames);
     // rs2::video_frame images = aligned_frames.get_color_frame();
@@ -159,10 +155,12 @@ namespace Pixsense {
       const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(frame);
       std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>> datumProcessed = opWrapper.emplaceAndPop(imageToProcess);
       std::chrono::time_point<std::chrono::high_resolution_clock> now = std::chrono::high_resolution_clock::now();
+      
 
       if (datumProcessed != nullptr && !datumProcessed->empty() )
       {
         std::shared_ptr<op::Datum> match = datumProcessed->at(0);
+        cv::imshow("asdf", OP_OP2CVMAT(match->cvOutputData));
 
         op::Array<float> pose_keypoints = match->poseKeypoints;
 
