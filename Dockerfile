@@ -9,7 +9,8 @@ RUN apt-get update && \
   protobuf-compiler  protobuf-c-compiler libprotoc-dev \
   libgoogle-glog-dev libboost-all-dev libhdf5-dev libatlas-base-dev \
   libssl-dev build-essential autoconf libtool pkg-config \
-  xorg-dev libglu1-mesa-dev libusb-1.0-0-dev libglm-dev
+  xorg-dev libglu1-mesa-dev libusb-1.0-0-dev libglm-dev \
+  libpq-dev
 
 # cmake
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.17.3/cmake-3.17.3.tar.gz

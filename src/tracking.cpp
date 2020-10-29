@@ -1,6 +1,6 @@
 #include <pixsense/face_finder.hpp>
 #include <pixsense/eye_tracker.hpp>
-#include <pixrpc/pixrpc.hpp>
+#include <pixpq/pixpq.hpp>
 #include <dlib/config_reader.h>
 
 #include <gflags/gflags.h>
@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 
   dlib::config_reader cr(FLAGS_config_file);
 
-  Pixrpc::Server server(5000);
+  pixpq::db db;
 
   Pixsense::RealsenseTracker rt(cr.block("cameras"));
   glm::vec3 target;
@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
   // Configure OpenPose
   op::opLog("Configuring OpenPose...", op::Priority::High);
   Pixsense::EyeTracker tracker;
-
-  struct Pixrpc::Location loc;
   while(!tracker.should_exit) {
-    if (rt.tick(tracker, loc.point)) {
-      server.send_location(loc);
+    glm::vec3 point;
+    if (rt.tick(tracker, point)) {
+      pixpq::location loc(point.x, point.y, point.z);
+      db.send("pixo-16.local", loc);
     } 
   }
 

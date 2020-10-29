@@ -9,6 +9,8 @@ find_package(realsense2 REQUIRED )
 find_package(OpenPose REQUIRED)
 find_package( Threads REQUIRED )
 find_package( GFlags REQUIRED )
+find_package(PostgreSQL REQUIRED )
+
 include_directories(${OpenPose_INCLUDE_DIRS})
 
 find_package(PkgConfig REQUIRED)
@@ -25,18 +27,15 @@ add_library(pixsense
 )
 link_libraries(pixsense realsense2 ${OpenPose_LIBS})
 
-
-add_subdirectory("pixrpc/")
-include_directories("${PIXRPC_INCLUDE}")
+add_subdirectory("pixpq/")
+include_directories("${PIXPQ_INCLUDE}")
 
 add_executable(tracking src/tracking.cpp )
 target_link_libraries(tracking
   ${GFLAGS_LIBRARIES}
-  ${PIXRPC_LIBRARY}
+  ${DLIB_LIBRARIES}
+  ${PIXPQ_LIBRARY}
 )
-
-add_executable(client src/client.cpp)
-target_link_libraries(client ${PIXRPC_LIBRARY})
 
 if (BUILD_TESTS)
   find_package(Catch2 REQUIRED)
