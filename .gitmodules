@@ -1,0 +1,3 @@
+[submodule "pixpq"]
+	path = pixpq
+	url = https://github.com/cconstantine/pixpq.git

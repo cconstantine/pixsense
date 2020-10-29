@@ -8,5 +8,6 @@ exec docker run -v /tmp/.X11-unix:/tmp/.X11-unix \
  -e NVIDIA_VISIBLE_DEVICES=0 \
  -v ${PWD}:/app/ \
  --network host \
+ -e PGPASSWORD=not_that_secret -e PGUSER=pixpq -e PGDATABASE=pixpq -e PGHOST=127.0.0.1 \
  $*
 
