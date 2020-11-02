@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
   float offset = 0.01f;
 
   bool should_exit = false;
-  struct Pixrpc::Location loc;
   while(!should_exit) {
     const char key = (char)cv::waitKey(1);
     if (key == 27) {
