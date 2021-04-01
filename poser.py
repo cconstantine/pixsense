@@ -92,10 +92,6 @@ def timing():
 
     print(500.0 / (t1 - t0))
 
-while True:
-    timing()
-
-exit(1)
 
 def execute(img):
     image = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
