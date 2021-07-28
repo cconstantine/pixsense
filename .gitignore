@@ -1,1 +1,4 @@
 *_trt.pth
+.env
+__pycache__
+*.pth.trt
