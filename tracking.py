@@ -1,6 +1,81 @@
 import sqlite3
 import glm
 import datetime
+import psycopg2
+import psycopg2.extras
+
+import uuid
+
+class PGTracking:
+    def __init__(self, sculpture_name):
+        self.con = psycopg2.connect('')
+        self.con.cursor().execute("SET statement_timeout = 16")
+        self.sculpture_name = sculpture_name
+
+        self.window = 0.1
+        self.tracked = None
+
+    def update(self, people, now = None):
+        if not now:
+            now = datetime.datetime.now()
+        with self.con:
+            with self.con.cursor() as cur:
+                cur.execute("SET synchronous_commit = 'off'")
+
+                for person in people:
+                    cur.execute("""
+                        UPDATE tracking_locations
+                        SET x = %s, y = %s, z = %s, updated_at = %s
+                        WHERE name IN (
+                            SELECT name
+                            FROM tracking_locations
+                            WHERE
+                            x BETWEEN %s AND %s AND
+                            y BETWEEN %s AND %s AND
+                            z BETWEEN %s AND %s
+                            LIMIT 1
+                        )
+                        RETURNING 1
+                        """,
+                        (person.x, person.y, person.z, now,
+                        person.x - self.window, person.x + self.window,
+                        person.y - self.window, person.y + self.window,
+                        person.z - self.window, person.z + self.window ))
+                    if len(cur.fetchall()) == 0:
+                        cur.execute("""
+                        INSERT INTO tracking_locations(name, x, y, z, updated_at)
+                        VALUES(%s, %s, %s, %s, %s)
+                        """,
+                        (str(uuid.uuid1()), person.x, person.y, person.z, now))
+                
+                expiry = now - datetime.timedelta(seconds=1)
+                cur.execute("DELETE FROM tracking_locations WHERE updated_at < %s", ( expiry, ))
+
+                expiry = now - datetime.timedelta(seconds=30)
+                cur.execute("SELECT 1 from tracking_locations where tracked_at > %s limit 1", ( expiry, ))
+                if len(cur.fetchall()) == 0:
+                    tracked_uuid = str(uuid.uuid1())
+                    cur.execute("UPDATE tracking_locations SET name = %s WHERE name = %s", (tracked_uuid,self.sculpture_name))
+                    if self.tracked:
+                        cur.execute("""
+                        UPDATE tracking_locations
+                        SET tracked_at = %s, name = %s
+                        WHERE name in (SELECT name from tracking_locations WHERE name != %s ORDER BY RANDOM() limit 1)
+                        """, ( now, self.sculpture_name, tracked_uuid))
+                    else:
+                        cur.execute("""
+                        UPDATE tracking_locations
+                        SET tracked_at = %s, name = %s
+                        WHERE name in (SELECT name from tracking_locations ORDER BY RANDOM() limit 1)
+                        """, ( now, self.sculpture_name))
+
+                self.tracked = self.get_tracked()
+                return self.tracked
+
+    def get_tracked(self):
+        with self.con.cursor(cursor_factory = psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * from tracking_locations where tracked_at is not null order by tracked_at desc limit 1")
+            return cur.fetchone()
 
 class Sqlite3Tracking:
     def __init__(self):
@@ -69,17 +144,18 @@ class Sqlite3Tracking:
         return c.fetchone()
 
 if __name__ == '__main__':
-    t = Tracking()
-    window = datetime.timedelta(seconds=60)
+    t = PGTracking("benchtest")
+    window = datetime.timedelta(seconds=1)
 
     def timing():
         start_time = datetime.datetime.now()
         for i in range(1,1000000):
-            tracked = t.update(glm.vec3(i, 2, 3))
+            tracked = t.update([glm.vec3(x, 2, 3) for x in range(100)])
             delta = datetime.datetime.now() - start_time
-            if tracked:
-                print(f"{i}: {dict(tracked)}")
+            # if tracked:
+            #     print(f"{i}: {dict(tracked)}")
             if delta > window:
+                print(10 / i)
                 break
             
 

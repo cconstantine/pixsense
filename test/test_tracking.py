@@ -32,16 +32,21 @@ class TrackingTest():
         self.assertEqual(tracked_1, tracked_2)
 
     def test_two_people_changes(self):
-        pos_1 = glm.vec3(0.0, 0.0, 0.0)
-        pos_2 = glm.vec3(1.0, 0.0, 0.0)
-        result = self.crowd.update([pos_1, pos_2], datetime.now())
-        tracked_1 = glm.vec3(result["x"], result["y"], result["z"])
+        for _ in range(1):
+            pos_1 = glm.vec3(0.0, 0.0, 0.0)
+            pos_2 = glm.vec3(1.0, 0.0, 0.0)
+            result = self.crowd.update([pos_1, pos_2], datetime.now())
+            tracked_1 = glm.vec3(result["x"], result["y"], result["z"])
 
-        result = self.crowd.update([pos_1, pos_2], datetime.now() + timedelta(minutes=10))
-        tracked_2 = glm.vec3(result["x"], result["y"], result["z"])
+            result = self.crowd.update([pos_1, pos_2], datetime.now() + timedelta(minutes=10))
+            tracked_2 = glm.vec3(result["x"], result["y"], result["z"])
 
-        self.assertNotEqual(tracked_1, tracked_2)
+            self.assertNotEqual(tracked_1, tracked_2)
 
-class Sqlite3TrackingTest(TrackingTest, unittest.TestCase):
+# class Sqlite3TrackingTest(TrackingTest, unittest.TestCase):
+#     def setUp(self):
+#         self.crowd = tracking.Sqlite3Tracking()
+
+class PGTrackingTest(TrackingTest, unittest.TestCase):
     def setUp(self):
-        self.crowd = tracking.Sqlite3Tracking()
+        self.crowd = tracking.PGTracking("test")

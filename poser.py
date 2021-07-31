@@ -14,6 +14,8 @@ import torch
 import torch2trt
 from torch2trt import TRTModule
 import time, sys
+import logging
+logger = logging.getLogger(__name__)
 
 import cv2
 import torchvision.transforms as transforms
@@ -43,7 +45,7 @@ def coco_category_to_topology(coco_category):
 
 class Detector:
     def __init__(self, net, image_dimensions, network_dimensions, weights_filename, optimize):
-        with open('human_pose.json', 'r') as f:
+        with open('models/human_pose.json', 'r') as f:
             self.human_pose = json.load(f)
 
         self.topology = coco_category_to_topology(self.human_pose)
@@ -61,7 +63,7 @@ class Detector:
         # data = torch.zeros((1, 3, self.height, self.width)).cuda()
             
         if optimize or os.path.exists(self.weights_filename_opt) == False:
-            print("Optimizing network for trt")
+            logger.info("Optimizing network for trt")
             self.model.load_state_dict(torch.load(self.weights_filename))
             self.model_trt = torch2trt.torch2trt(self.model, [torch.zeros((1, 3, *self.network_dimensions)).cuda()], fp16_mode=True)
             torch.save(self.model_trt.state_dict(), self.weights_filename_opt)
@@ -90,29 +92,9 @@ class Detector:
 
         # self.draw_objects(image, counts, objects, peaks)
         # # self.image = cv2.resize(image, dsize=(self.image_dimensions[0], self.image_dimensions[1]), interpolation=cv2.INTER_AREA)
-        # cv2.imshow("self.camera_id", image)
+        # cv2.imshow(f"{self.camera_id}", image)
         # cv2.waitKey(1)
         return [ self.get_keypoint(objects, i, peaks) for i in range(counts[0]) ]
-        # for i in range(counts[0]):
-            
-            # for j in range(len(keypoints)):
-            #     if keypoints[j][1]:
-            #         x = round(keypoints[j][2] * self.width * X_compress)
-            #         y = round(keypoints[j][1] * self.height * Y_compress)
-            #         cv2.circle(src, (x, y), 3, color, 2)
-            #         cv2.putText(src , "%d" % int(keypoints[j][0]), (x + 5, y),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
-            #         cv2.circle(src, (x, y), 3, color, 2)
-        # return keypoints
-        #draw_objects(img, counts, objects, peaks)
-        # if counts[0] > 0:
-        #     human = objects[0][0]
-        #     left_eye_idx = 0
-        #     human_idx = int(human[left_eye_idx])
-        #     if human_idx >= 0:
-        #         left_eye_peak = peaks[0][left_eye_idx][human_idx] 
-        #         #print(left_eye_peak)
-        #         return left_eye_peak
-        # return []
 
     '''
     hnum: 0 based human index
@@ -139,11 +121,11 @@ class Detector:
 
 class DetectorResnet(Detector):
     def __init__(self, image_dimensions, optimize):
-        super().__init__(trt_pose.models.resnet18_baseline_att, image_dimensions, (224, 224), 'resnet18_baseline_att_224x224_A_epoch_249.pth', optimize)
+        super().__init__(trt_pose.models.resnet18_baseline_att, image_dimensions, (224, 224), 'models/resnet18_baseline_att_224x224_A_epoch_249.pth', optimize)
 
 class DetectorDensenet(Detector):
     def __init__(self, image_dimensions, optimize):
-        super().__init__(trt_pose.models.densenet121_baseline_att, image_dimensions, (256, 256), 'densenet121_baseline_att_256x256_B_epoch_160.pth', optimize)
+        super().__init__(trt_pose.models.densenet121_baseline_att, image_dimensions, (256, 256), 'models/densenet121_baseline_att_256x256_B_epoch_160.pth', optimize)
 
     
 # if __name__ == "__main__":

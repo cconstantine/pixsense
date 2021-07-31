@@ -4,6 +4,9 @@ import cv2
 import poser
 import time
 from datetime import datetime
+from statistics import mean
+import logging
+logger = logging.getLogger(__name__)
 
 import collections
 import PIL.Image
@@ -38,11 +41,13 @@ class Timer:
         sum(self.times) / len(self.times)
 
 class RSCamera:
-    def __init__(self, camera_id):
+    def __init__(self, camera_id, model, optimize):
         self.camera_id = camera_id
+        self.model = model
+        self.optimize = optimize
     
     def enable(self):
-        print("Enabling camera {0}".format(self.camera_id))
+        logger.info("Enabling camera {0}".format(self.camera_id))
         self.pipeline = rs.pipeline()
         config = rs.config()
         config.enable_device(self.camera_id)
@@ -50,19 +55,23 @@ class RSCamera:
         config.enable_stream(rs.stream.depth,    848, 480, rs.format.z16, 60)
         pipeline_profile=self.pipeline.start(config)
         pipeline_profile.get_device().sensors[0].set_option(rs.option.emitter_enabled, 0)
-
-        self.resn = poser.DetectorResnet((848, 480), False)
+        if self.model == 'resnet':
+            self.resn = poser.DetectorResnet((848, 480), self.optimize)
+        elif self.model == 'densenet':
+            self.resn = poser.DetectorDensenet((848, 480), self.optimize)
+        else:
+            raise RuntimeError(f"Unknown model: {self.model}")
 
     def wait_for_frames(self):
         frames = self.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_infrared_frame(0)
         if not depth_frame or not color_frame:
-            print("Missing frames from camera {0}:".format(self.camera_id))
-            if not depth_frame_1:
-                print(" - depth")
-            if not color_frame_1:
-                print(" - visible")
+            logger.warning("Missing frames from camera {0}:".format(self.camera_id))
+            if not depth_frame:
+                logger.warning(" - depth")
+            if not color_frame:
+                logger.warning(" - visible")
             return (None, None)
         # Convert images to numpy arrays
         # depth_image = np.asanyarray(depth_frame.get_data())
@@ -73,6 +82,19 @@ class RSCamera:
 
         return (color_image, depth_frame)
     
+    def min_distance(self, depth_frame, x, y, window = 5):
+        min = 0
+        for i in range(-window + 1, window):
+            x_i = x+i
+            if x_i >= 0 and x_i < depth_frame.width:
+                for j in range(-window + 1, window):
+                    y_j = y+j
+                    if y_j >= 0 and y_j < depth_frame.height:
+                        distance = depth_frame.get_distance(x_i, y_j)
+                        if distance > 0 and distance < min or min == 0:
+                            min = distance
+        return min
+    
     def keypoints_to_people(self, keypoints, depth_frame):
         depth_intrinsics = depth_frame.profile.as_video_stream_profile().intrinsics
         people = []
@@ -80,8 +102,7 @@ class RSCamera:
         for keypoint in keypoints:
             uv = keypoint[0][1:3]
             if uv:
-                distance = depth_frame.get_distance(*uv)
-                xyz = glm.vec3(rs.rs2_deproject_pixel_to_point(depth_intrinsics, uv, distance))
+                xyz = glm.vec3(rs.rs2_deproject_pixel_to_point(depth_intrinsics, uv, self.min_distance(depth_frame, *uv)))
                 if xyz != glm.vec3(0.0):
                     xyz.y = -xyz.y
                     xyz.x = -xyz.x
@@ -94,57 +115,33 @@ class RSCamera:
         
 if __name__ == '__main__':
     import argparse
-
+    
     parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
     parser.add_argument('--device', type=str, help = 'Device id (049222073570 or 038122250538)' )
+    parser.add_argument('--log_level', default="WARNING", type=str, help = 'Logging level' )
+    parser.add_argument('--model', type=str, default='resnet', help = 'resnet or densenet' )
+    parser.add_argument('--optimize', default=False, action='store_true', help = 'Generate a new optimized trt module' )
+
     args = parser.parse_args()
 
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()))
 
-    print("Streaming...")
-    camera = RSCamera(args.device)
+    logger.info("Streaming...")
+    camera = RSCamera(args.device, args.model, args.optimize)
     camera.enable()
     fps = Timer(10)
     latency = 0.0
     con = psycopg2.connect('')
 
-    crowd = tracking.Sqlite3Tracking()
+    crowd = tracking.PGTracking('pixo-16')
     while True:
         fps.tick()
         color_image, depth_frame = camera.wait_for_frames()
         t1 = time.time()
         people = camera.detect(color_image, depth_frame)
         target = crowd.update([ person.xyz for person in people ])
-        if target:
-            with con.cursor() as cur:
-                cur.execute("SET synchronous_commit = 'off'")
-                cur.execute("""
-                    INSERT INTO tracking_locations(name, x, y, z)
-                    VALUES ('pixo-8', %s, %s, %s)
-                    ON CONFLICT (name) DO UPDATE set x = EXCLUDED.x, y = EXCLUDED.y, z = EXCLUDED.z
-                    RETURNING name, x, y, z
-                    """,
-                    (target["x"], target["y"] - 0.30, target["z"] - 0.18))
-                con.commit()
-
         t2 = time.time()
-        # for i, person in enumerate(people):
-        #     #cv2.circle(camera.resn.image, person.uv, radius=9, color=(0, 0, 255), thickness=-1)
-        #     if i > 0:
-        #         continue
-        #     with con.cursor() as cur:
-        #         cur.execute("SET synchronous_commit = 'off'")
-        #         cur.execute("""
-        #             INSERT INTO tracking_locations(name, x, y, z)
-        #             VALUES ('pixo-16', %s, %s, %s)
-        #             ON CONFLICT (name) DO UPDATE set x = EXCLUDED.x, y = EXCLUDED.y, z = EXCLUDED.z
-        #             RETURNING name, x, y, z
-        #             """,
-        #             person.xyz)
-        #         con.commit()
 
-
-        #cv2.imshow(args.device, camera.resn.image)
-        #cv2.waitKey(1)
-            
         latency = (1.9*latency + 0.1*(t2 - t1)) / 2
-        print("{0}: {1: 2d} :: {2:7.2f}fps ({3: 7.4f}ms)".format(args.device, len(people), fps.fps(), 1000*latency))
+        num_people = len(people)
+        logger.info("{0} |{1}| {2:7.2f}fps ({3: 7.4f}ms)".format(args.device, "*"*num_people + " "* (10-num_people), fps.fps(), 1000*latency))
