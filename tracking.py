@@ -3,6 +3,8 @@ import glm
 import datetime
 import psycopg2
 import psycopg2.extras
+import logging
+logger = logging.getLogger(__name__)
 
 import uuid
 
@@ -10,12 +12,20 @@ class PGTracking:
     def __init__(self, sculpture_name):
         self.con = psycopg2.connect('')
         self.con.cursor().execute("SET statement_timeout = 16")
+        self.con.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
         self.sculpture_name = sculpture_name
 
         self.window = 0.1
-        self.tracked = None
 
     def update(self, people, now = None):
+        try:
+            self._update(people, now)
+        except psycopg2.errors.SerializationFailure:
+            pass
+        except psycopg2.errors.DeadlockDetected as e:
+            logger.error(e)
+    
+    def _update(self, people, now = None):
         if not now:
             now = datetime.datetime.now()
         with self.con:
@@ -50,29 +60,25 @@ class PGTracking:
                 
                 expiry = now - datetime.timedelta(seconds=1)
                 cur.execute("DELETE FROM tracking_locations WHERE updated_at < %s", ( expiry, ))
-
+        with self.con:
+            with self.con.cursor(cursor_factory = psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("SET synchronous_commit = 'off'")
                 expiry = now - datetime.timedelta(seconds=30)
-                cur.execute("SELECT 1 from tracking_locations where tracked_at > %s limit 1", ( expiry, ))
-                if len(cur.fetchall()) == 0:
+                tracked = self.get_tracked(cur)
+                if not tracked or tracked["tracked_at"] < expiry:
                     tracked_uuid = str(uuid.uuid1())
                     cur.execute("UPDATE tracking_locations SET name = %s WHERE name = %s", (tracked_uuid,self.sculpture_name))
-                    if self.tracked:
-                        cur.execute("""
-                        UPDATE tracking_locations
-                        SET tracked_at = %s, name = %s
-                        WHERE name in (SELECT name from tracking_locations WHERE name != %s ORDER BY RANDOM() limit 1)
-                        """, ( now, self.sculpture_name, tracked_uuid))
-                    else:
-                        cur.execute("""
-                        UPDATE tracking_locations
-                        SET tracked_at = %s, name = %s
-                        WHERE name in (SELECT name from tracking_locations ORDER BY RANDOM() limit 1)
-                        """, ( now, self.sculpture_name))
+                    cur.execute("""
+                    UPDATE tracking_locations
+                    SET tracked_at = %s, name = %s
+                    WHERE name in (SELECT name from tracking_locations WHERE name != %s ORDER BY RANDOM() limit 1)
+                    """, ( now, self.sculpture_name, tracked_uuid))
+                return self.get_tracked(cur)
 
-                self.tracked = self.get_tracked()
-                return self.tracked
-
-    def get_tracked(self):
+    def get_tracked(self, cur=None):
+        if cur:
+            cur.execute("SELECT * from tracking_locations where tracked_at is not null order by tracked_at desc limit 1")
+            return cur.fetchone()
         with self.con.cursor(cursor_factory = psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * from tracking_locations where tracked_at is not null order by tracked_at desc limit 1")
             return cur.fetchone()

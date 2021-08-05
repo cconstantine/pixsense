@@ -92,7 +92,7 @@ class Detector:
 
         # self.draw_objects(image, counts, objects, peaks)
         # # self.image = cv2.resize(image, dsize=(self.image_dimensions[0], self.image_dimensions[1]), interpolation=cv2.INTER_AREA)
-        # cv2.imshow(f"{self.camera_id}", image)
+        # cv2.imshow(f"camera", image)
         # cv2.waitKey(1)
         return [ self.get_keypoint(objects, i, peaks) for i in range(counts[0]) ]
 
@@ -128,55 +128,3 @@ class DetectorDensenet(Detector):
         super().__init__(trt_pose.models.densenet121_baseline_att, image_dimensions, (256, 256), 'models/densenet121_baseline_att_256x256_B_epoch_160.pth', optimize)
 
     
-# if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
-#     parser.add_argument('--model', type=str, default='resnet', help = 'resnet or densenet' )
-#     parser.add_argument('--optimize', default=False, action='store_true', help = 'Generate a new optimized trt module' )
-#     args = parser.parse_args()
-
-#     resn = DetectorDensenet(args.optimize)
-
-#     pipeline = rs.pipeline()
-#     config = rs.config()
-#     #config.enable_stream(rs.stream.color,    640, 480, rs.format.bgr8, 60)
-#     config.enable_stream(rs.stream.infrared, 640, 480, rs.format.y8, 30)
-#     config.enable_stream(rs.stream.depth,    640, 480, rs.format.z16, 30)
-
-#     # Start streaming
-#     pipeline_profile = pipeline.start(config)
-#     device = pipeline_profile.get_device()
-#     depth_sensor = device.query_sensors()[0]
-#     depth_sensor.set_option(rs.option.emitter_enabled, 0)
-
-
-
-#     print("Streaming...")
-#     while True:
-#         frames = pipeline.wait_for_frames()
-#         img_frame = frames.get_infrared_frame()
-#         depth_frame = frames.get_depth_frame()
-#         t = time.time()
-
-#         img = np.asanyarray(img_frame.get_data())
-#         cv2.imshow('image',img)
-#         img = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
-#         #cv2.imshow('image',img)
-#         #continue
-#         part = resn.detect(img)
-#         fps = 1.0 / (time.time() - t)
-#         print("FPS:{0:7.2f} ".format(fps))
-
-#         if part != None:
-#             point = (part[1]*640, part[0]*480)
-#             img = cv2.circle(img, point, radius=9, color=(0, 0, 255), thickness=-1)
-
-#             depth_intrinsics = depth_frame.profile.as_video_stream_profile().intrinsics
-#             xyz = rs.rs2_deproject_pixel_to_point(depth_intrinsics, [point[0], point[1]], depth_frame.get_distance(point[0], point[1]))
-#             print(xyz)
-
-#         #cv2.imshow('image',PIL.Image.fromarray(img))
-#         cv2.waitKey(1)
-
-
-#     cv2.destroyAllWindows()
-

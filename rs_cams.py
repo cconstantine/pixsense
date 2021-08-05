@@ -41,10 +41,12 @@ class Timer:
         sum(self.times) / len(self.times)
 
 class RSCamera:
-    def __init__(self, camera_id, model, optimize):
+    def __init__(self, camera_id, model, optimize, offset, rotate):
         self.camera_id = camera_id
         self.model = model
         self.optimize = optimize
+        self.offset = offset
+        self.rotate = rotate
     
     def enable(self):
         logger.info("Enabling camera {0}".format(self.camera_id))
@@ -106,6 +108,8 @@ class RSCamera:
                 if xyz != glm.vec3(0.0):
                     xyz.y = -xyz.y
                     xyz.x = -xyz.x
+                    xyz += self.offset
+                    xyz = glm.rotate(xyz, glm.radians(self.rotate), glm.vec3(0.0, 1.0, 0.0))
                     people.append(Person(xyz, updated_at=now))
         return people
 
@@ -121,13 +125,19 @@ if __name__ == '__main__':
     parser.add_argument('--log_level', default="WARNING", type=str, help = 'Logging level' )
     parser.add_argument('--model', type=str, default='resnet', help = 'resnet or densenet' )
     parser.add_argument('--optimize', default=False, action='store_true', help = 'Generate a new optimized trt module' )
+    parser.add_argument('-x', type=float, default=0, help="x offset")
+    parser.add_argument('-y', type=float, default=0, help="y offset")
+    parser.add_argument('-z', type=float, default=0, help="z offset")
+    parser.add_argument('-r', type=float, default=0, help="camera rotation (degrees)")
+
+    #cd.rotation = glm::rotate(glm::radians(dlib::get_option(config, "rotation", 0.0f)), glm::vec3(0.0f, 1.1f, 0.0f));
 
     args = parser.parse_args()
-
+    print(args.r)
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
 
     logger.info("Streaming...")
-    camera = RSCamera(args.device, args.model, args.optimize)
+    camera = RSCamera(args.device, args.model, args.optimize, offset=glm.vec3(args.x, args.y, args.z), rotate=args.r)
     camera.enable()
     fps = Timer(10)
     latency = 0.0
@@ -140,6 +150,7 @@ if __name__ == '__main__':
         t1 = time.time()
         people = camera.detect(color_image, depth_frame)
         target = crowd.update([ person.xyz for person in people ])
+        
         t2 = time.time()
 
         latency = (1.9*latency + 0.1*(t2 - t1)) / 2
