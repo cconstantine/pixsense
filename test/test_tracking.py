@@ -8,25 +8,30 @@ import tracking
 class TrackingTest():
     def test_single_person(self):
         pos_1 = glm.vec3(0.0, 0.0, 0.0)
-        result = self.crowd.update([pos_1], datetime.now())
+        self.crowd.update([pos_1], datetime.now())
+        result = self.crowd.get_tracked()
         result = glm.vec3(result["x"], result["y"], result["z"])
         self.assertEqual(pos_1, result)
 
-        result = self.crowd.update([pos_1], datetime.now() + timedelta(milliseconds=10))
+        self.crowd.update([pos_1], datetime.now() + timedelta(milliseconds=10))
+        result = self.crowd.get_tracked()
         result = glm.vec3(result["x"], result["y"], result["z"])
         self.assertEqual(pos_1, result)
 
-        result = self.crowd.update([pos_1], datetime.now() + timedelta(minutes=10))
+        self.crowd.update([pos_1], datetime.now() + timedelta(minutes=10))
+        result = self.crowd.get_tracked()
         result = glm.vec3(result["x"], result["y"], result["z"])
         self.assertEqual(pos_1, result)
 
     def test_two_people_sticks(self):
         pos_1 = glm.vec3(0.0, 0.0, 0.0)
         pos_2 = glm.vec3(1.0, 0.0, 0.0)
-        result = self.crowd.update([pos_1, pos_2], datetime.now())
+        self.crowd.update([pos_1, pos_2], datetime.now())
+        result = self.crowd.get_tracked()
         tracked_1 = glm.vec3(result["x"], result["y"], result["z"])
 
-        result = self.crowd.update([pos_1, pos_2], datetime.now() + timedelta(milliseconds=10))
+        self.crowd.update([pos_1, pos_2], datetime.now() + timedelta(milliseconds=10))
+        result = self.crowd.get_tracked()
         tracked_2 = glm.vec3(result["x"], result["y"], result["z"])
 
         self.assertEqual(tracked_1, tracked_2)
@@ -36,9 +41,11 @@ class TrackingTest():
             pos_1 = glm.vec3(0.0, 0.0, 0.0)
             pos_2 = glm.vec3(1.0, 0.0, 0.0)
             result = self.crowd.update([pos_1, pos_2], datetime.now())
+            result = self.crowd.get_tracked()
             tracked_1 = glm.vec3(result["x"], result["y"], result["z"])
 
             result = self.crowd.update([pos_1, pos_2], datetime.now() + timedelta(minutes=10))
+            result = self.crowd.get_tracked()
             tracked_2 = glm.vec3(result["x"], result["y"], result["z"])
 
             self.assertNotEqual(tracked_1, tracked_2)

@@ -122,37 +122,41 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
     parser.add_argument('--device', type=str, help = 'Device id (049222073570 or 038122250538)' )
-    parser.add_argument('--log_level', default="WARNING", type=str, help = 'Logging level' )
-    parser.add_argument('--model', type=str, default='resnet', help = 'resnet or densenet' )
+    parser.add_argument('--log_level', default="INFO", type=str, help = 'Logging level' )
+    parser.add_argument('--model', type=str, default='densenet', help = 'resnet or densenet' )
     parser.add_argument('--optimize', default=False, action='store_true', help = 'Generate a new optimized trt module' )
     parser.add_argument('-x', type=float, default=0, help="x offset")
     parser.add_argument('-y', type=float, default=0, help="y offset")
     parser.add_argument('-z', type=float, default=0, help="z offset")
     parser.add_argument('-r', type=float, default=0, help="camera rotation (degrees)")
+    parser.add_argument('--fps', type=float, default=10, help="non-tracking fps limit")
 
     #cd.rotation = glm::rotate(glm::radians(dlib::get_option(config, "rotation", 0.0f)), glm::vec3(0.0f, 1.1f, 0.0f));
 
     args = parser.parse_args()
-    print(args.r)
+    fps_time = 1.0/args.fps
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
 
     logger.info("Streaming...")
     camera = RSCamera(args.device, args.model, args.optimize, offset=glm.vec3(args.x, args.y, args.z), rotate=args.r)
     camera.enable()
     fps = Timer(10)
-    latency = 0.0
     con = psycopg2.connect('')
 
     crowd = tracking.PGTracking('pixo-16')
     while True:
+        t0 = time.time()
         fps.tick()
         color_image, depth_frame = camera.wait_for_frames()
+
         t1 = time.time()
         people = camera.detect(color_image, depth_frame)
-        target = crowd.update([ person.xyz for person in people ])
-        
+        is_tracking = crowd.update([ person.xyz for person in people ])
         t2 = time.time()
 
-        latency = (1.9*latency + 0.1*(t2 - t1)) / 2
+        latency = (t2 - t1)/2
         num_people = len(people)
         logger.info("{0} |{1}| {2:7.2f}fps ({3: 7.4f}ms)".format(args.device, "*"*num_people + " "* (10-num_people), fps.fps(), 1000*latency))
+        td = fps_time - (time.time() - t0)
+        if not is_tracking and td > 0:
+            time.sleep(td)

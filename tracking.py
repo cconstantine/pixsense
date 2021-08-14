@@ -19,17 +19,18 @@ class PGTracking:
 
     def update(self, people, now = None):
         try:
-            self._update(people, now)
+            return self._update(people, now)
         except psycopg2.errors.SerializationFailure:
             pass
         except psycopg2.errors.DeadlockDetected as e:
             logger.error(e)
     
     def _update(self, people, now = None):
+        is_tracking = False
         if not now:
             now = datetime.datetime.now()
         with self.con:
-            with self.con.cursor() as cur:
+            with self.con.cursor(cursor_factory = psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("SET synchronous_commit = 'off'")
 
                 for person in people:
@@ -45,27 +46,28 @@ class PGTracking:
                             z BETWEEN %s AND %s
                             LIMIT 1
                         )
-                        RETURNING 1
+                        RETURNING name
                         """,
                         (person.x, person.y, person.z, now,
                         person.x - self.window, person.x + self.window,
                         person.y - self.window, person.y + self.window,
                         person.z - self.window, person.z + self.window ))
-                    if len(cur.fetchall()) == 0:
+                    names = cur.fetchall()
+                    if len(names) == 0:
                         cur.execute("""
                         INSERT INTO tracking_locations(name, x, y, z, updated_at)
                         VALUES(%s, %s, %s, %s, %s)
                         """,
                         (str(uuid.uuid1()), person.x, person.y, person.z, now))
+                    else:
+                        is_tracking = any([x["name"] == self.sculpture_name for x in names])
                 
                 expiry = now - datetime.timedelta(seconds=1)
                 cur.execute("DELETE FROM tracking_locations WHERE updated_at < %s", ( expiry, ))
         with self.con:
             with self.con.cursor(cursor_factory = psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("SET synchronous_commit = 'off'")
-                expiry = now - datetime.timedelta(seconds=30)
-                tracked = self.get_tracked(cur)
-                if not tracked or tracked["tracked_at"] < expiry:
+                if self.switch_pending(cur, now):
                     tracked_uuid = str(uuid.uuid1())
                     cur.execute("UPDATE tracking_locations SET name = %s WHERE name = %s", (tracked_uuid,self.sculpture_name))
                     cur.execute("""
@@ -73,7 +75,18 @@ class PGTracking:
                     SET tracked_at = %s, name = %s
                     WHERE name in (SELECT name from tracking_locations WHERE name != %s ORDER BY RANDOM() limit 1)
                     """, ( now, self.sculpture_name, tracked_uuid))
-                return self.get_tracked(cur)
+                return is_tracking
+
+    def switch_pending(self, cur, now):
+        expiry = now - datetime.timedelta(seconds=30)
+        tracked = self.get_tracked(cur)
+        if not tracked:
+            return True
+        if tracked["tracked_at"] < expiry:
+            cur.execute("select 1 from tracking_locations where name != %s limit 1", (tracked["name"],))
+            return cur.fetchone() != None
+        return False
+
 
     def get_tracked(self, cur=None):
         if cur:
