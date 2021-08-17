@@ -90,10 +90,9 @@ class Detector:
         cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
         counts, objects, peaks = self.parse_objects(cmap, paf)
 
-        # self.draw_objects(image, counts, objects, peaks)
-        # # self.image = cv2.resize(image, dsize=(self.image_dimensions[0], self.image_dimensions[1]), interpolation=cv2.INTER_AREA)
-        # cv2.imshow(f"camera", image)
-        # cv2.waitKey(1)
+        #self.draw_objects(image, counts, objects, peaks)
+        #cv2.imshow(f"camera", image)
+        #cv2.waitKey(1)
         return [ self.get_keypoint(objects, i, peaks) for i in range(counts[0]) ]
 
     '''

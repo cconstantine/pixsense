@@ -120,6 +120,8 @@ class RSCamera:
 if __name__ == '__main__':
     import argparse
     
+    from prometheus_client import start_http_server, Histogram, Gauge, utils
+    
     parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
     parser.add_argument('--device', type=str, help = 'Device id (049222073570 or 038122250538)' )
     parser.add_argument('--log_level', default="INFO", type=str, help = 'Logging level' )
@@ -130,12 +132,23 @@ if __name__ == '__main__':
     parser.add_argument('-z', type=float, default=0, help="z offset")
     parser.add_argument('-r', type=float, default=0, help="camera rotation (degrees)")
     parser.add_argument('--fps', type=float, default=10, help="non-tracking fps limit")
+    parser.add_argument('--port', type=int, default=8000, help="Port for prometheus metrics")
 
     #cd.rotation = glm::rotate(glm::radians(dlib::get_option(config, "rotation", 0.0f)), glm::vec3(0.0f, 1.1f, 0.0f));
 
     args = parser.parse_args()
     fps_time = 1.0/args.fps
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
+
+    start_http_server(args.port)
+
+    frame_latency = Histogram(
+        'frame_latency_seconds',
+        'Description of histogram',
+        ['camera',],
+        buckets = tuple(x / 1000 for x in range(9, 60, 2)) + (utils.INF,)
+        )
+    people_count = Gauge('people_count', "Number of people seen", ['camera',])
 
     logger.info("Streaming...")
     camera = RSCamera(args.device, args.model, args.optimize, offset=glm.vec3(args.x, args.y, args.z), rotate=args.r)
@@ -155,6 +168,8 @@ if __name__ == '__main__':
         t2 = time.time()
 
         latency = (t2 - t1)/2
+        frame_latency.labels(camera=args.device).observe(latency)
+        people_count.labels(camera=args.device).set(len(people))
         num_people = len(people)
         logger.info("{0} |{1}| {2:7.2f}fps ({3: 7.4f}ms)".format(args.device, "*"*num_people + " "* (10-num_people), fps.fps(), 1000*latency))
         td = fps_time - (time.time() - t0)
